@@ -30,10 +30,28 @@ jobs:
               run: make generate manifests
             - name: Check for changes
               run: |
-                if [ -n "$(git status --porcelain)" ]; then
-                  echo "There are new changes after the code generation. Please run 'make gen' and commit the changes"
-                  exit 1
-                fi
+                  if [ -n "$(git status --porcelain)" ]; then
+                    echo "There are new changes after the code generation. Please run 'make gen' and commit the changes"
+                    exit 1
+                  fi
+
+    check-code:
+        name: Run GitHub Super Linter
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v3
+              with:
+                  fetch-depth: 0
+            - name: Vet Code
+              run: make vet
+            - name: Check Code Format
+              run: |
+                  make fmt
+                  if [ -n "$(git status --porcelain)" ]; then
+                    echo "There are new changes after the code format. Please run 'make fmt' and commit the changes"
+                    exit 1
+                  fi
 
     run-super-linter:
         name: Run GitHub Super Linter
