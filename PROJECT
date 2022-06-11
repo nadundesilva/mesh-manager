@@ -6,4 +6,14 @@ plugins:
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: mesh-manager
 repo: github.com/nadundesilva/mesh-manager
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: hub.docker.com
+  group: mesh-manager.nadundesilva.github.io
+  kind: Application
+  path: github.com/nadundesilva/mesh-manager/api/v1alpha1
+  version: v1alpha1
 version: "3"
