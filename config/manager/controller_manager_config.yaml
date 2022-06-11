@@ -8,4 +8,4 @@ webhook:
   port: 9443
 leaderElection:
   leaderElect: true
-  resourceName: 0d8fa43c.hub.docker.com
+  resourceName: 0d8fa43c.nadundesilva.github.io

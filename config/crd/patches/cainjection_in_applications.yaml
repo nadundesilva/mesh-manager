@@ -4,4 +4,4 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: $(CERTIFICATE_NAMESPACE)/$(CERTIFICATE_NAME)
-  name: applications.mesh-manager.nadundesilva.github.io.hub.docker.com
+  name: applications.mesh-manager.nadundesilva.github.io

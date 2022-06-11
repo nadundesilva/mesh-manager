@@ -1,4 +1,4 @@
-apiVersion: mesh-manager.nadundesilva.github.io.hub.docker.com/v1alpha1
+apiVersion: mesh-manager.nadundesilva.github.io/v1alpha1
 kind: Application
 metadata:
   name: application-sample

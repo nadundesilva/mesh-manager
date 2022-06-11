@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	meshmanagernadundesilvagithubiov1alpha1 "github.com/nadundesilva/mesh-manager/api/v1alpha1"
+	meshmanagerv1alpha1 "github.com/nadundesilva/mesh-manager/api/v1alpha1"
 	"github.com/nadundesilva/mesh-manager/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -44,7 +44,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(meshmanagernadundesilvagithubiov1alpha1.AddToScheme(scheme))
+	utilruntime.Must(meshmanagerv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -71,7 +71,7 @@ func main() {
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "0d8fa43c.hub.docker.com",
+		LeaderElectionID:       "0d8fa43c.nadundesilva.github.io",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

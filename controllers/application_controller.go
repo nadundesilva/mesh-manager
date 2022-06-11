@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	meshmanagernadundesilvagithubiov1alpha1 "github.com/nadundesilva/mesh-manager/api/v1alpha1"
+	meshmanagerv1alpha1 "github.com/nadundesilva/mesh-manager/api/v1alpha1"
 )
 
 // ApplicationReconciler reconciles a Application object
@@ -30,9 +30,9 @@ type ApplicationReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=mesh-manager.nadundesilva.github.io.hub.docker.com,resources=applications,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=mesh-manager.nadundesilva.github.io.hub.docker.com,resources=applications/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=mesh-manager.nadundesilva.github.io.hub.docker.com,resources=applications/finalizers,verbs=update
+//+kubebuilder:rbac:groups=mesh-manager.nadundesilva.github.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=mesh-manager.nadundesilva.github.io,resources=applications/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=mesh-manager.nadundesilva.github.io,resources=applications/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -54,6 +54,6 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 // SetupWithManager sets up the controller with the Manager.
 func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&meshmanagernadundesilvagithubiov1alpha1.Application{}).
+		For(&meshmanagerv1alpha1.Application{}).
 		Complete(r)
 }

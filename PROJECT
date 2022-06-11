@@ -1,4 +1,4 @@
-domain: hub.docker.com
+domain: nadundesilva.github.io
 layout:
 - go.kubebuilder.io/v3
 plugins:
@@ -11,8 +11,8 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: hub.docker.com
-  group: mesh-manager.nadundesilva.github.io
+  domain: nadundesilva.github.io
+  group: mesh-manager
   kind: Application
   path: github.com/nadundesilva/mesh-manager/api/v1alpha1
   version: v1alpha1
