@@ -68,6 +68,12 @@ jobs:
               uses: actions/setup-go@v3
               with:
                   go-version: "^1.18"
+            - name: Login to the Container registry
+              if: ${{ inputs.publish-snapshots != '' }}
+              uses: docker/login-action@v2
+              with:
+                  username: nadunrds
+                  password: ${{ secrets.docker_hub_token }}
             - name: Building Controller
               run: make docker-build
               env:
@@ -79,10 +85,10 @@ jobs:
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
-            # - name: Pushing Controller
-            #   run: make docker-push
-            #   env:
-            #       IMG: "nadunrds/mesh-manager-operator:${{ github.sha }}"
+            - name: Pushing Controller
+              run: make docker-push
+              env:
+                  IMG: "nadunrds/mesh-manager-operator:${{ github.sha }}"
             - name: Building Controller Bundle
               run: make docker-build
               env:
@@ -94,7 +100,7 @@ jobs:
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
-            # - name: Pushing Controller Bundle
-            #   run: make docker-push
-            #   env:
-            #       IMG: "nadunrds/mesh-manager-operator-bundle:${{ github.sha }}"
+            - name: Pushing Controller Bundle
+              run: make docker-push
+              env:
+                  IMG: "nadunrds/mesh-manager-operator-bundle:${{ github.sha }}"
