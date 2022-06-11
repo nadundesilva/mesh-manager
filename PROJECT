@@ -1,0 +1,9 @@
+domain: hub.docker.com
+layout:
+- go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: mesh-manager
+repo: github.com/nadundesilva/mesh-manager
+version: "3"
