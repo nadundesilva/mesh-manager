@@ -117,30 +117,30 @@ jobs:
             - name: Building Controller
               run: make docker-build
               env:
-                  IMG: "nadunrds/mesh-manager-operator:${{ github.sha }}"
+                  IMG: "nadunrds/mesh-manager-operator:${{ github.ref_name }}"
             - name: Run Trivy vulnerability scanner on Controller
               uses: aquasecurity/trivy-action@master
               with:
-                  image-ref: nadunrds/mesh-manager-operator:${{ github.sha }}
+                  image-ref: nadunrds/mesh-manager-operator:${{ github.ref_name }}
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
             - name: Pushing Controller
               run: make docker-push
               env:
-                  IMG: "nadunrds/mesh-manager-operator:${{ github.sha }}"
+                  IMG: "nadunrds/mesh-manager-operator:${{ github.ref_name }}"
             - name: Building Controller Bundle
               run: make docker-build
               env:
-                  IMG: "nadunrds/mesh-manager-operator-bundle:${{ github.sha }}"
+                  IMG: "nadunrds/mesh-manager-operator-bundle:${{ github.ref_name }}"
             - name: Run Trivy vulnerability scanner on Controller Bundle
               uses: aquasecurity/trivy-action@master
               with:
-                  image-ref: nadunrds/mesh-manager-operator-bundle:${{ github.sha }}
+                  image-ref: nadunrds/mesh-manager-operator-bundle:${{ github.ref_name }}
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
             - name: Pushing Controller Bundle
               run: make docker-push
               env:
-                  IMG: "nadunrds/mesh-manager-operator-bundle:${{ github.sha }}"
+                  IMG: "nadunrds/mesh-manager-operator-bundle:${{ github.ref_name }}"
