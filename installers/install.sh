@@ -19,5 +19,4 @@ else
     VERSION="${1}"
 fi
 
-operator-sdk olm install
-operator-sdk run bundle "nadunrds/mesh-manager-operator-bundle:${VERSION}"
+operator-sdk run bundle "docker.io/nadunrds/mesh-manager-operator-bundle:${VERSION}"

@@ -26,8 +26,17 @@ jobs:
               uses: actions/setup-go@v3
               with:
                   go-version: "^1.18"
+            - name: Setup Operator SDK
+              run: |
+                  ARCH=$(case $(uname -m) in x86_64) echo -n amd64 ;; aarch64) echo -n arm64 ;; *) echo -n "$(uname -m)" ;; esac)
+                  OS=$(uname | awk '{print tolower($0)}')
+
+                  OPERATOR_SDK_DL_URL=https://github.com/operator-framework/operator-sdk/releases/download/v1.21.0
+                  curl -LO "${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH}"
+
+                  chmod +x "operator-sdk_${OS}_${ARCH}" && sudo mv "operator-sdk_${OS}_${ARCH}" /usr/local/bin/operator-sdk
             - name: Generate code
-              run: make generate manifests
+              run: make generate manifests bundle
             - name: Check for changes
               run: |
                   if [ -n "$(git status --porcelain)" ]; then
@@ -109,12 +118,6 @@ jobs:
               uses: actions/setup-go@v3
               with:
                   go-version: "^1.18"
-            - name: Login to the Container registry
-              if: ${{ inputs.publish-snapshots != '' }}
-              uses: docker/login-action@v2
-              with:
-                  username: nadunrds
-                  password: ${{ secrets.docker_hub_token }}
             - name: Building Controller
               run: make docker-build
               env:
@@ -126,14 +129,10 @@ jobs:
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
-            - name: Pushing Controller
-              run: make docker-push
-              env:
-                  IMG: "nadunrds/mesh-manager-operator:${{ github.ref_name }}"
             - name: Building Controller Bundle
-              run: make docker-build
+              run: make bundle-build
               env:
-                  IMG: "nadunrds/mesh-manager-operator-bundle:${{ github.ref_name }}"
+                  BUNDLE_IMG: "nadunrds/mesh-manager-operator-bundle:${{ github.ref_name }}"
             - name: Run Trivy vulnerability scanner on Controller Bundle
               uses: aquasecurity/trivy-action@master
               with:
@@ -141,7 +140,17 @@ jobs:
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
-            - name: Pushing Controller Bundle
+            - name: Login to the Container registry
+              if: ${{ inputs.publish-snapshots != '' }}
+              uses: docker/login-action@v2
+              with:
+                  username: nadunrds
+                  password: ${{ secrets.docker_hub_token }}
+            - name: Pushing Controller
               run: make docker-push
               env:
-                  IMG: "nadunrds/mesh-manager-operator-bundle:${{ github.ref_name }}"
+                  IMG: "nadunrds/mesh-manager-operator:${{ github.ref_name }}"
+            - name: Pushing Controller Bundle
+              run: make bundle-push
+              env:
+                  BUNDLE_IMG: "nadunrds/mesh-manager-operator-bundle:${{ github.ref_name }}"

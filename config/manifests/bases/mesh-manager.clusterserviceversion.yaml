@@ -1,0 +1,49 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+  name: mesh-manager.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: Application is the Schema for the applications API
+      displayName: Application
+      kind: Application
+      name: applications.mesh-manager.nadundesilva.github.io
+      version: v1alpha1
+  description: Operator for microservices deployment
+  displayName: Mesh Manager
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - microservices
+  - deployment
+  links:
+  - name: Mesh Manager
+    url: https://mesh-manager.domain
+  maintainers:
+  - email: nadunrds@gmail.com
+    name: nadundesilva
+  maturity: alpha
+  provider:
+    name: Nadun De Silva
+    url: https://nadundesilva.github.io
+  version: 0.0.0
