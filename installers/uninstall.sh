@@ -12,4 +12,4 @@
 
 set -e
 
-operator-sdk cleanup mesh-manager-operator
+operator-sdk cleanup --namespace mesh-manager-system --delete-all mesh-manager

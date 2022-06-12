@@ -12,12 +12,10 @@
 
 set -e
 
-if [ "${1}" == "" ]; then
-    echo "✋ Expected version argument not provided"
-    exit 1
-else
-    VERSION="${1}"
-fi
+ARCH=$(case $(uname -m) in x86_64) echo -n amd64 ;; aarch64) echo -n arm64 ;; *) echo -n "$(uname -m)" ;; esac)
+OS=$(uname | awk '{print tolower($0)}')
 
-kubectl create ns mesh-manager-system
-operator-sdk run bundle --namespace mesh-manager-system "docker.io/nadunrds/mesh-manager-bundle:${VERSION}"
+OPERATOR_SDK_DL_URL=https://github.com/operator-framework/operator-sdk/releases/download/v1.21.0
+curl -LO "${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH}"
+
+chmod +x "operator-sdk_${OS}_${ARCH}" && sudo mv "operator-sdk_${OS}_${ARCH}" /usr/local/bin/operator-sdk

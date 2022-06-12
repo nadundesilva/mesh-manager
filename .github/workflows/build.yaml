@@ -1,4 +1,3 @@
-
 name: Build
 
 on:
@@ -28,13 +27,7 @@ jobs:
                   go-version: "^1.18"
             - name: Setup Operator SDK
               run: |
-                  ARCH=$(case $(uname -m) in x86_64) echo -n amd64 ;; aarch64) echo -n arm64 ;; *) echo -n "$(uname -m)" ;; esac)
-                  OS=$(uname | awk '{print tolower($0)}')
-
-                  OPERATOR_SDK_DL_URL=https://github.com/operator-framework/operator-sdk/releases/download/v1.21.0
-                  curl -LO "${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH}"
-
-                  chmod +x "operator-sdk_${OS}_${ARCH}" && sudo mv "operator-sdk_${OS}_${ARCH}" /usr/local/bin/operator-sdk
+                  .github/scripts/setup-operator-sdk.sh
             - name: Generate code
               run: make generate manifests bundle
             - name: Check for changes
@@ -118,25 +111,33 @@ jobs:
               uses: actions/setup-go@v3
               with:
                   go-version: "^1.18"
+            - name: Setup Operator SDK
+              run: |
+                  .github/scripts/setup-operator-sdk.sh
+            - name: Generate code
+              run: make generate manifests bundle
+              env:
+                  IMG: "nadunrds/mesh-manager:${{ github.ref_name }}"
+                  BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ github.ref_name }}"
             - name: Building Controller
               run: make docker-build
               env:
-                  IMG: "nadunrds/mesh-manager-operator:${{ github.ref_name }}"
+                  IMG: "nadunrds/mesh-manager:${{ github.ref_name }}"
             - name: Run Trivy vulnerability scanner on Controller
               uses: aquasecurity/trivy-action@master
               with:
-                  image-ref: nadunrds/mesh-manager-operator:${{ github.ref_name }}
+                  image-ref: nadunrds/mesh-manager:${{ github.ref_name }}
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
             - name: Building Controller Bundle
               run: make bundle-build
               env:
-                  BUNDLE_IMG: "nadunrds/mesh-manager-operator-bundle:${{ github.ref_name }}"
+                  BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ github.ref_name }}"
             - name: Run Trivy vulnerability scanner on Controller Bundle
               uses: aquasecurity/trivy-action@master
               with:
-                  image-ref: nadunrds/mesh-manager-operator-bundle:${{ github.ref_name }}
+                  image-ref: nadunrds/mesh-manager-bundle:${{ github.ref_name }}
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
@@ -149,8 +150,8 @@ jobs:
             - name: Pushing Controller
               run: make docker-push
               env:
-                  IMG: "nadunrds/mesh-manager-operator:${{ github.ref_name }}"
+                  IMG: "nadunrds/mesh-manager:${{ github.ref_name }}"
             - name: Pushing Controller Bundle
               run: make bundle-push
               env:
-                  BUNDLE_IMG: "nadunrds/mesh-manager-operator-bundle:${{ github.ref_name }}"
+                  BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ github.ref_name }}"
