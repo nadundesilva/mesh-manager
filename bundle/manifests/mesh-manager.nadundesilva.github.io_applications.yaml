@@ -35,7 +35,7 @@ spec:
             description: ApplicationSpec defines the desired state of Application
             properties:
               podSpec:
-                description: PodSpec is a description of a pod.
+                description: PodSpec describes the pods that will be created.
                 properties:
                   activeDeadlineSeconds:
                     description: Optional duration in seconds the pod may be active

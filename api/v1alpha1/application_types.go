@@ -26,6 +26,7 @@ type ApplicationSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	// PodSpec describes the pods that will be created.
 	PodSpec corev1.PodSpec `json:"podSpec"`
 }
 

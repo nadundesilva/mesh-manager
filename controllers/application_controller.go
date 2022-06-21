@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -51,7 +52,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	_ = log.FromContext(ctx)
 
 	application := &meshmanagerv1alpha1.Application{}
-	if err := r.Client.Get(ctx, req.NamespacedName, application); err != nil {
+	if err := r.Client.Get(ctx, req.NamespacedName, application); err != nil && !errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
 
@@ -63,6 +64,9 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if err := r.reconcileDeployment(ctx, req, application, labels); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := r.reconcileService(ctx, req, application, labels); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -107,6 +111,60 @@ func (r *ApplicationReconciler) reconcileDeployment(ctx context.Context, req ctr
 		}
 	} else {
 		if err := r.Client.Update(ctx, deployment); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *ApplicationReconciler) reconcileService(ctx context.Context, req ctrl.Request,
+	application *meshmanagerv1alpha1.Application, labels map[string]string) error {
+	service := &corev1.Service{}
+	err := r.Client.Get(ctx, req.NamespacedName, service)
+	var isNotFound bool
+	if err != nil {
+		isNotFound = errors.IsNotFound(err)
+		if !isNotFound {
+			return err
+		}
+	}
+
+	ports := []corev1.ServicePort{}
+	for _, container := range application.Spec.PodSpec.Containers {
+		for _, port := range container.Ports {
+			ports = append(ports, corev1.ServicePort{
+				Name:     port.Name,
+				Protocol: port.Protocol,
+				Port:     port.ContainerPort,
+				TargetPort: (func() intstr.IntOrString {
+					if port.Name == "" {
+						return intstr.FromInt(int(port.ContainerPort))
+					} else {
+						return intstr.FromString(port.Name)
+					}
+				})(),
+			})
+		}
+	}
+	service = &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: req.Namespace,
+			Name:      req.Name,
+			Labels:    labels,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: labels,
+			Ports:    ports,
+		},
+	}
+	ctrl.SetControllerReference(application, service, r.Scheme)
+
+	if isNotFound {
+		if err := r.Client.Create(ctx, service); err != nil {
+			return err
+		}
+	} else {
+		if err := r.Client.Update(ctx, service); err != nil {
 			return err
 		}
 	}
