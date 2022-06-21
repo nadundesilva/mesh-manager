@@ -14,6 +14,7 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,8 +26,7 @@ type ApplicationSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Application. Edit application_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	PodSpec corev1.PodSpec `json:"podSpec"`
 }
 
 // ApplicationStatus defines the observed state of Application

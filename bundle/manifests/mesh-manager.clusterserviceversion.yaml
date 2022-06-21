@@ -10,7 +10,21 @@ metadata:
           "metadata": {
             "name": "application-sample"
           },
-          "spec": null
+          "spec": {
+            "podSpec": {
+              "containers": [
+                {
+                  "image": "nginx:1.14.2",
+                  "name": "nginx",
+                  "ports": [
+                    {
+                      "containerPort": 80
+                    }
+                  ]
+                }
+              ]
+            }
+          }
         }
       ]
     capabilities: Basic Install

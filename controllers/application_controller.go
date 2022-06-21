@@ -16,6 +16,10 @@ package controllers
 import (
 	"context"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,9 +50,67 @@ type ApplicationReconciler struct {
 func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	application := &meshmanagerv1alpha1.Application{}
+	if err := r.Client.Get(ctx, req.NamespacedName, application); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	labels := map[string]string{
+		"application": req.Name,
+	}
+	for k, v := range application.Labels {
+		labels[k] = v
+	}
+
+	if err := r.reconcileDeployment(ctx, req, application, labels); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *ApplicationReconciler) reconcileDeployment(ctx context.Context, req ctrl.Request,
+	application *meshmanagerv1alpha1.Application, labels map[string]string) error {
+	deployment := &appsv1.Deployment{}
+	err := r.Client.Get(ctx, req.NamespacedName, deployment)
+	var isNotFound bool
+	if err != nil {
+		isNotFound = errors.IsNotFound(err)
+		if !isNotFound {
+			return err
+		}
+	}
+
+	deployment = &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: req.Namespace,
+			Name:      req.Name,
+			Labels:    labels,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: labels,
+				},
+				Spec: application.Spec.PodSpec,
+			},
+		},
+	}
+	ctrl.SetControllerReference(application, deployment, r.Scheme)
+
+	if isNotFound {
+		if err := r.Client.Create(ctx, deployment); err != nil {
+			return err
+		}
+	} else {
+		if err := r.Client.Update(ctx, deployment); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -3,4 +3,9 @@ kind: Application
 metadata:
   name: application-sample
 spec:
-  # TODO(user): Add fields here
+  podSpec:
+    containers:
+    - name: nginx
+      image: nginx:1.14.2
+      ports:
+      - containerPort: 80

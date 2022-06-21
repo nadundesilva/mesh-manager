@@ -33,7 +33,7 @@ jobs:
             - name: Check for changes
               run: |
                   if [ -n "$(git status --porcelain)" ]; then
-                    echo "There are new changes after the code generation. Please run 'make gen' and commit the changes"
+                    echo "There are new changes after the code generation. Please run 'make generate manifests bundle' and commit the changes"
                     exit 1
                   fi
 
