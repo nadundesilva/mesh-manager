@@ -1,0 +1,20 @@
+# permissions for end users to view dependantslice.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dependantslice-viewer-role
+rules:
+- apiGroups:
+  - mesh-manager.nadundesilva.github.io
+  resources:
+  - dependantslice
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - mesh-manager.nadundesilva.github.io
+  resources:
+  - dependantslice/status
+  verbs:
+  - get
