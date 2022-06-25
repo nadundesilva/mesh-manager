@@ -26,10 +26,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	meshmanagerv1alpha1 "github.com/nadundesilva/mesh-manager/api/v1alpha1"
 )
+
+const applicationFinalizer = "mesh-manager.nadundesilva.github.io/finalizer"
 
 // ApplicationReconciler reconciles a Application object
 type ApplicationReconciler struct {
@@ -61,6 +64,33 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			return ctrl.Result{}, nil
 		} else {
 			return ctrl.Result{}, fmt.Errorf("failed to get existing application: %+w", err)
+		}
+	}
+
+	isApplicationMarkedToBeDeleted := application.GetDeletionTimestamp() != nil
+	if isApplicationMarkedToBeDeleted {
+		if controllerutil.ContainsFinalizer(application, applicationFinalizer) {
+			isFinalized, err := r.finalize(ctx, req, application)
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to finalize application: %+w", err)
+			}
+
+			if isFinalized {
+				controllerutil.RemoveFinalizer(application, applicationFinalizer)
+				err := r.Update(ctx, application)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	if !controllerutil.ContainsFinalizer(application, applicationFinalizer) {
+		controllerutil.AddFinalizer(application, applicationFinalizer)
+		err := r.Update(ctx, application)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to add finalizer: %+w", err)
 		}
 	}
 
@@ -288,19 +318,76 @@ func (r *ApplicationReconciler) reconcileDependantSlices(ctx context.Context, re
 				return fmt.Errorf("failed to create new dependency dependant slice: %+w", err)
 			}
 		} else {
-			if len(dependencyDependantSlice.Spec.Dependants) == 0 {
-				if err := r.Client.Delete(ctx, dependencyDependantSlice,
-					client.PropagationPolicy(metav1.DeletePropagationBackground)); err != nil {
-					return fmt.Errorf("failed to delete existing dependency dependant slice without dependants: %+w", err)
-				}
-			} else {
-				if err := r.Client.Update(ctx, dependencyDependantSlice); err != nil {
-					return fmt.Errorf("failed to update existing dependency dependant slice: %+w", err)
-				}
+			if err := r.Client.Update(ctx, dependencyDependantSlice); err != nil {
+				return fmt.Errorf("failed to update existing dependency dependant slice: %+w", err)
 			}
 		}
 	}
 	return nil
+}
+
+func (r *ApplicationReconciler) finalize(ctx context.Context, req ctrl.Request,
+	application *meshmanagerv1alpha1.Application) (bool, error) {
+	for _, dependency := range application.Spec.Dependencies {
+		dependencyDependantSlice := &meshmanagerv1alpha1.DependantSlice{}
+		dependencyName := apitypes.NamespacedName{
+			Namespace: func() string {
+				if dependency.Namespace == "" {
+					return application.GetNamespace()
+				} else {
+					return dependency.Namespace
+				}
+			}(),
+			Name: dependency.Name,
+		}
+		logger := log.FromContext(ctx).WithValues("dependency", dependencyName)
+
+		err := r.Client.Get(ctx, dependencyName, dependencyDependantSlice)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				continue
+			} else {
+				return false, fmt.Errorf("failed to get existing dependency dependant slice: %+w", err)
+			}
+		}
+
+		// Removing application from dependant slice of dependency
+		dependantIndex := -1
+		for index, dependant := range dependencyDependantSlice.Spec.Dependants {
+			if dependant.Namespace == application.Namespace && dependant.Name == application.Name {
+				dependantIndex = index
+			}
+		}
+		if dependantIndex > 0 {
+			dependants := dependencyDependantSlice.Spec.Dependants
+			dependencyDependantSlice.Spec.Dependants = append(dependants[:dependantIndex], dependants[dependantIndex+1:]...)
+			if err := r.Client.Update(ctx, dependencyDependantSlice); err != nil {
+				return false, fmt.Errorf("failed to remove application from dependants list: %+w", err)
+			}
+		}
+
+		// Cleaning up any dangling dependency slices
+		if len(dependencyDependantSlice.Spec.Dependants) == 0 {
+			err := r.Client.Delete(ctx, dependencyDependantSlice, client.PropagationPolicy(metav1.DeletePropagationBackground))
+			if err != nil {
+				logger.Error(err, "failed to cleanup dangling dependency slice")
+			} else {
+				logger.Info("cleaned up dangling dependency")
+			}
+		}
+	}
+
+	// Checking whether the application can be cleaned up
+	applicationDependantSlice := &meshmanagerv1alpha1.DependantSlice{}
+	err := r.Client.Get(ctx, req.NamespacedName, applicationDependantSlice)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return true, nil
+		} else {
+			return false, fmt.Errorf("failed to get existing dependency dependant slice: %+w", err)
+		}
+	}
+	return len(applicationDependantSlice.Spec.Dependants) == 0, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
