@@ -3,4 +3,4 @@ kind: DependantSlice
 metadata:
   name: dependantslice-sample
 spec:
-  # TODO(user): Add fields here
+  dependants: []

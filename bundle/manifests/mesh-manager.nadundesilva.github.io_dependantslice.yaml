@@ -34,10 +34,23 @@ spec:
           spec:
             description: DependantSliceSpec defines the desired state of DependantSlice
             properties:
-              foo:
-                description: Foo is an example field of DependantSlice. Edit dependantslice_types.go
-                  to remove/update
-                type: string
+              dependants:
+                description: Dependants defines the list of applications which depends
+                  on this
+                items:
+                  description: ApplicationRef defines a reference to an application
+                  properties:
+                    name:
+                      description: Name is the name of the application
+                      type: string
+                    namespace:
+                      description: Namespace is the namespace in which the application
+                        resides in
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
             type: object
           status:
             description: DependantSliceStatus defines the observed state of DependantSlice

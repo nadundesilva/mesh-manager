@@ -23,17 +23,17 @@ import (
 
 // ApplicationSpec defines the desired state of Application
 type ApplicationSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// PodSpec describes the pods that will be created.
+	// PodSpec describes the pods that will be created
 	PodSpec corev1.PodSpec `json:"podSpec"`
+
+	// Dependencies defines the list of applications this application depends on
+	Dependencies []ApplicationRef `json:"dependencies,omitempty"`
 }
 
 // ApplicationStatus defines the observed state of Application
 type ApplicationStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// MissingDependencies describes the number of dependencies that are not there in the cluster
+	MissingDependencies int `json:"missingDependencies"`
 }
 
 //+kubebuilder:object:root=true

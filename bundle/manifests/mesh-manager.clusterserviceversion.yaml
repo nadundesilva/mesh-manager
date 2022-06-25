@@ -11,6 +11,33 @@ metadata:
             "name": "application-sample"
           },
           "spec": {
+            "dependencies": [
+              {
+                "name": "application"
+              }
+            ],
+            "podSpec": {
+              "containers": [
+                {
+                  "image": "nginx:1.14.2",
+                  "name": "nginx",
+                  "ports": [
+                    {
+                      "containerPort": 80
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "apiVersion": "mesh-manager.nadundesilva.github.io/v1alpha1",
+          "kind": "Application",
+          "metadata": {
+            "name": "application-sample-dependency"
+          },
+          "spec": {
             "podSpec": {
               "containers": [
                 {
@@ -32,7 +59,9 @@ metadata:
           "metadata": {
             "name": "dependantslice-sample"
           },
-          "spec": null
+          "spec": {
+            "dependants": []
+          }
         }
       ]
     capabilities: Basic Install
