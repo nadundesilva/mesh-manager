@@ -20,6 +20,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,7 +34,9 @@ import (
 	meshmanagerv1alpha1 "github.com/nadundesilva/mesh-manager/api/v1alpha1"
 )
 
-const applicationFinalizer = "mesh-manager.nadundesilva.github.io/finalizer"
+const groupFqn = "mesh-manager.nadundesilva.github.io"
+const applicationFinalizer = groupFqn + "/finalizer"
+const applicationLabel = groupFqn + "/application"
 
 // ApplicationReconciler reconciles a Application object
 type ApplicationReconciler struct {
@@ -68,6 +71,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
+	// Finalizing if required
 	isApplicationMarkedToBeDeleted := application.GetDeletionTimestamp() != nil
 	if isApplicationMarkedToBeDeleted {
 		if controllerutil.ContainsFinalizer(application, applicationFinalizer) {
@@ -89,6 +93,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, nil
 	}
 
+	// Adding finalizer
 	if !controllerutil.ContainsFinalizer(application, applicationFinalizer) {
 		controllerutil.AddFinalizer(application, applicationFinalizer)
 		err := r.Update(ctx, application)
@@ -97,25 +102,26 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	labels := map[string]string{
-		"application": req.Name,
-	}
-	for k, v := range application.Labels {
-		labels[k] = v
-	}
-
-	if err := r.reconcileDependencies(ctx, req, application, labels); err != nil {
+	// Fixing dependencies
+	if err := r.reconcileDependencies(ctx, req, application); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile application dependency slices: %+w", err)
 	}
 	if err := r.Status().Update(ctx, application); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to update existing application: %+w", err)
 	}
 
+	// Creating sub-resources
+	labels := map[string]string{
+		applicationLabel: req.Name,
+	}
+	for k, v := range application.Labels {
+		labels[k] = v
+	}
 	if len(application.Spec.Dependencies) == 0 || application.Status.MissingDependencies == 0 {
 		if err := r.reconcileDeployment(ctx, req, application, labels); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to reconcile application deployment: %+w", err)
 		}
-		if err := r.reconcileService(ctx, req, application, labels); err != nil {
+		if err := r.reconcileNetworking(ctx, req, application, labels); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to reconcile application service: %+w", err)
 		}
 		return ctrl.Result{}, nil
@@ -154,8 +160,26 @@ func (r *ApplicationReconciler) reconcileDeployment(ctx context.Context, req ctr
 	return err
 }
 
-func (r *ApplicationReconciler) reconcileService(ctx context.Context, req ctrl.Request,
+func (r *ApplicationReconciler) reconcileNetworking(ctx context.Context, req ctrl.Request,
 	application *meshmanagerv1alpha1.Application, labels map[string]string) error {
+	ports := []corev1.ServicePort{}
+	for _, container := range application.Spec.PodSpec.Containers {
+		for _, port := range container.Ports {
+			ports = append(ports, corev1.ServicePort{
+				Name:     port.Name,
+				Protocol: port.Protocol,
+				Port:     port.ContainerPort,
+				TargetPort: (func() intstr.IntOrString {
+					if port.Name == "" {
+						return intstr.FromInt(int(port.ContainerPort))
+					} else {
+						return intstr.FromString(port.Name)
+					}
+				})(),
+			})
+		}
+	}
+
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: req.Namespace,
@@ -164,23 +188,6 @@ func (r *ApplicationReconciler) reconcileService(ctx context.Context, req ctrl.R
 		},
 	}
 	_, err := ctrl.CreateOrUpdate(ctx, r.Client, service, func() error {
-		ports := []corev1.ServicePort{}
-		for _, container := range application.Spec.PodSpec.Containers {
-			for _, port := range container.Ports {
-				ports = append(ports, corev1.ServicePort{
-					Name:     port.Name,
-					Protocol: port.Protocol,
-					Port:     port.ContainerPort,
-					TargetPort: (func() intstr.IntOrString {
-						if port.Name == "" {
-							return intstr.FromInt(int(port.ContainerPort))
-						} else {
-							return intstr.FromString(port.Name)
-						}
-					})(),
-				})
-			}
-		}
 		service.Spec.Selector = labels
 		service.Spec.Ports = ports
 
@@ -189,11 +196,69 @@ func (r *ApplicationReconciler) reconcileService(ctx context.Context, req ctrl.R
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	netpol := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: req.Namespace,
+			Name:      req.Name,
+			Labels:    labels,
+		},
+	}
+	_, err = ctrl.CreateOrUpdate(ctx, r.Client, netpol, func() error {
+		netpol.Spec.PodSelector = metav1.LabelSelector{
+			MatchLabels: labels,
+		}
+		netpol.Spec.PolicyTypes = []networkingv1.PolicyType{
+			networkingv1.PolicyTypeIngress,
+		}
+		if len(application.Status.Dependants) > 0 {
+			netpol.Spec.Ingress = []networkingv1.NetworkPolicyIngressRule{
+				{
+					Ports: func() []networkingv1.NetworkPolicyPort {
+						netpolPorts := []networkingv1.NetworkPolicyPort{}
+						for _, port := range ports {
+							netpolPorts = append(netpolPorts, networkingv1.NetworkPolicyPort{
+								Protocol: &port.Protocol,
+								Port:     &port.TargetPort,
+							})
+						}
+						return netpolPorts
+					}(),
+					From: func() []networkingv1.NetworkPolicyPeer {
+						peers := []networkingv1.NetworkPolicyPeer{}
+						for _, dependant := range application.Status.Dependants {
+							peers = append(peers, networkingv1.NetworkPolicyPeer{
+								NamespaceSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"kubernetes.io/metadata.name": dependant.Namespace,
+									},
+								},
+								PodSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										applicationLabel: dependant.Name,
+									},
+								},
+							})
+						}
+						return peers
+					}(),
+				},
+			}
+		}
+
+		if err := ctrl.SetControllerReference(application, netpol, r.Scheme); err != nil {
+			return fmt.Errorf("failed to set controller reference to application network policy: %+w", err)
+		}
+		return nil
+	})
 	return err
 }
 
 func (r *ApplicationReconciler) reconcileDependencies(ctx context.Context, req ctrl.Request,
-	application *meshmanagerv1alpha1.Application, labels map[string]string) error {
+	application *meshmanagerv1alpha1.Application) error {
 	applicationRef := meshmanagerv1alpha1.ApplicationRef{
 		Namespace: application.Namespace,
 		Name:      application.Name,
@@ -222,6 +287,7 @@ func (r *ApplicationReconciler) reconcileDependencies(ctx context.Context, req c
 			}
 		}
 
+		// Adding current application to dependency's dependants list
 		isDependencyAlreadyLinked := false
 		for _, dependant := range dependencyApplication.Status.Dependants {
 			if dependant.Namespace == applicationRef.Namespace && dependant.Name == applicationRef.Name {
