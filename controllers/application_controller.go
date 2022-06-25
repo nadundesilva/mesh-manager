@@ -16,6 +16,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -59,7 +60,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	logger.Info("Reconciling application")
 
 	application := &meshmanagerv1alpha1.Application{}
-	if err := r.Client.Get(ctx, req.NamespacedName, application); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, application); err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		} else {
@@ -81,6 +82,8 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 				if err != nil {
 					return ctrl.Result{}, err
 				}
+			} else {
+				return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 			}
 		}
 		return ctrl.Result{}, nil
@@ -104,6 +107,10 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if err := r.reconcileDependencies(ctx, req, application, labels); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile application dependency slices: %+w", err)
 	}
+	if err := r.Status().Update(ctx, application); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to update existing application: %+w", err)
+	}
+
 	if len(application.Spec.Dependencies) == 0 || application.Status.MissingDependencies == 0 {
 		if err := r.reconcileDeployment(ctx, req, application, labels); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to reconcile application deployment: %+w", err)
@@ -111,14 +118,13 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if err := r.reconcileService(ctx, req, application, labels); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to reconcile application service: %+w", err)
 		}
+		return ctrl.Result{}, nil
 	} else {
-		logger.Info("Application resources not created since it contains unmet dependencies")
+		logger.Info("Application resources not created since it contains missing dependencies",
+			"totalDependenciesCount", len(application.Spec.Dependencies),
+			"missingDependenciesCount", application.Status.MissingDependencies)
+		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
-
-	if err := r.Client.Update(ctx, application); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to update existing application: %+w", err)
-	}
-	return ctrl.Result{}, nil
 }
 
 func (r *ApplicationReconciler) reconcileDeployment(ctx context.Context, req ctrl.Request,
@@ -194,48 +200,41 @@ func (r *ApplicationReconciler) reconcileDependencies(ctx context.Context, req c
 	}
 	application.Status.MissingDependencies = 0
 	for _, dependency := range application.Spec.Dependencies {
-		dependencyApplication := &meshmanagerv1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: func() string {
-					if dependency.Namespace == "" {
-						return application.GetNamespace()
-					} else {
-						return dependency.Namespace
-					}
-				}(),
-				Name:   dependency.Name,
-				Labels: labels,
-			},
-		}
-		_, err := ctrl.CreateOrUpdate(ctx, r.Client, dependencyApplication, func() error {
-			dependencyName := apitypes.NamespacedName{
-				Namespace: dependencyApplication.Namespace,
-				Name:      dependencyApplication.Name,
-			}
-
-			dependencyApplication := &meshmanagerv1alpha1.Application{}
-			err := r.Client.Get(ctx, dependencyName, dependencyApplication)
-			if err != nil {
-				if errors.IsNotFound(err) {
-					application.Status.MissingDependencies += 1
+		dependencyName := apitypes.NamespacedName{
+			Namespace: func() string {
+				if dependency.Namespace == "" {
+					return application.GetNamespace()
 				} else {
-					return fmt.Errorf("failed to get existing dependency: %+w", err)
+					return dependency.Namespace
 				}
-			}
+			}(),
+			Name: dependency.Name,
+		}
 
-			isDependencyAlreadyLinked := false
-			for _, dependant := range dependencyApplication.Status.Dependants {
-				if dependant.Namespace == applicationRef.Namespace && dependant.Name == applicationRef.Name {
-					isDependencyAlreadyLinked = true
-				}
-			}
-			if !isDependencyAlreadyLinked {
-				dependencyApplication.Status.Dependants = append(dependencyApplication.Status.Dependants, applicationRef)
-			}
-			return nil
-		})
+		dependencyApplication := &meshmanagerv1alpha1.Application{}
+		err := r.Get(ctx, dependencyName, dependencyApplication)
 		if err != nil {
-			return err
+			if errors.IsNotFound(err) {
+				application.Status.MissingDependencies += 1
+				continue
+			} else {
+				return fmt.Errorf("failed to get existing dependency: %+w", err)
+			}
+		}
+
+		isDependencyAlreadyLinked := false
+		for _, dependant := range dependencyApplication.Status.Dependants {
+			if dependant.Namespace == applicationRef.Namespace && dependant.Name == applicationRef.Name {
+				isDependencyAlreadyLinked = true
+			}
+		}
+		if !isDependencyAlreadyLinked {
+			dependencyApplication.Status.Dependants = append(dependencyApplication.Status.Dependants, applicationRef)
+		}
+
+		if err := r.Status().Update(ctx, dependencyApplication); err != nil {
+			return fmt.Errorf("failed to update dependency application %s/%s: %+w",
+				dependencyName.Namespace, dependencyName.Name, err)
 		}
 	}
 	return nil
@@ -255,7 +254,7 @@ func (r *ApplicationReconciler) finalize(ctx context.Context, req ctrl.Request,
 			}(),
 			Name: dependency.Name,
 		}
-		err := r.Client.Get(ctx, dependencyName, dependencyApplication)
+		err := r.Get(ctx, dependencyName, dependencyApplication)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				continue
@@ -271,10 +270,10 @@ func (r *ApplicationReconciler) finalize(ctx context.Context, req ctrl.Request,
 				dependantIndex = index
 			}
 		}
-		if dependantIndex > 0 {
+		if dependantIndex >= 0 {
 			dependants := dependencyApplication.Status.Dependants
 			dependencyApplication.Status.Dependants = append(dependants[:dependantIndex], dependants[dependantIndex+1:]...)
-			if err := r.Client.Update(ctx, dependencyApplication); err != nil {
+			if err := r.Status().Update(ctx, dependencyApplication); err != nil {
 				return false, fmt.Errorf("failed to remove application from dependants list: %+w", err)
 			}
 		}
