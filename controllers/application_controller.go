@@ -101,7 +101,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		labels[k] = v
 	}
 
-	if err := r.reconcileDependantSlices(ctx, req, application, labels); err != nil {
+	if err := r.reconcileDependencies(ctx, req, application, labels); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile application dependency slices: %+w", err)
 	}
 	if len(application.Spec.Dependencies) == 0 || application.Status.MissingDependencies == 0 {
@@ -186,34 +186,15 @@ func (r *ApplicationReconciler) reconcileService(ctx context.Context, req ctrl.R
 	return err
 }
 
-func (r *ApplicationReconciler) reconcileDependantSlices(ctx context.Context, req ctrl.Request,
+func (r *ApplicationReconciler) reconcileDependencies(ctx context.Context, req ctrl.Request,
 	application *meshmanagerv1alpha1.Application, labels map[string]string) error {
-	// Creating dependant slice for the current application
-	dependantSlice := &meshmanagerv1alpha1.DependantSlice{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: req.Namespace,
-			Name:      req.Name,
-			Labels:    labels,
-		},
-	}
-	_, err := ctrl.CreateOrUpdate(ctx, r.Client, dependantSlice, func() error {
-		if err := ctrl.SetControllerReference(application, dependantSlice, r.Scheme); err != nil {
-			return fmt.Errorf("failed to set controller reference to application service: %+w", err)
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	// Updating dependant slices for dependencies
 	applicationRef := meshmanagerv1alpha1.ApplicationRef{
 		Namespace: application.Namespace,
 		Name:      application.Name,
 	}
 	application.Status.MissingDependencies = 0
 	for _, dependency := range application.Spec.Dependencies {
-		dependencyDependantSlice := &meshmanagerv1alpha1.DependantSlice{
+		dependencyApplication := &meshmanagerv1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: func() string {
 					if dependency.Namespace == "" {
@@ -226,14 +207,14 @@ func (r *ApplicationReconciler) reconcileDependantSlices(ctx context.Context, re
 				Labels: labels,
 			},
 		}
-		_, err = ctrl.CreateOrUpdate(ctx, r.Client, dependencyDependantSlice, func() error {
+		_, err := ctrl.CreateOrUpdate(ctx, r.Client, dependencyApplication, func() error {
 			dependencyName := apitypes.NamespacedName{
-				Namespace: dependencyDependantSlice.Namespace,
-				Name:      dependencyDependantSlice.Name,
+				Namespace: dependencyApplication.Namespace,
+				Name:      dependencyApplication.Name,
 			}
 
 			dependencyApplication := &meshmanagerv1alpha1.Application{}
-			err = r.Client.Get(ctx, dependencyName, dependencyApplication)
+			err := r.Client.Get(ctx, dependencyName, dependencyApplication)
 			if err != nil {
 				if errors.IsNotFound(err) {
 					application.Status.MissingDependencies += 1
@@ -243,16 +224,19 @@ func (r *ApplicationReconciler) reconcileDependantSlices(ctx context.Context, re
 			}
 
 			isDependencyAlreadyLinked := false
-			for _, dependant := range dependencyDependantSlice.Spec.Dependants {
+			for _, dependant := range dependencyApplication.Status.Dependants {
 				if dependant.Namespace == applicationRef.Namespace && dependant.Name == applicationRef.Name {
 					isDependencyAlreadyLinked = true
 				}
 			}
 			if !isDependencyAlreadyLinked {
-				dependencyDependantSlice.Spec.Dependants = append(dependencyDependantSlice.Spec.Dependants, applicationRef)
+				dependencyApplication.Status.Dependants = append(dependencyApplication.Status.Dependants, applicationRef)
 			}
 			return nil
 		})
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -260,7 +244,7 @@ func (r *ApplicationReconciler) reconcileDependantSlices(ctx context.Context, re
 func (r *ApplicationReconciler) finalize(ctx context.Context, req ctrl.Request,
 	application *meshmanagerv1alpha1.Application) (bool, error) {
 	for _, dependency := range application.Spec.Dependencies {
-		dependencyDependantSlice := &meshmanagerv1alpha1.DependantSlice{}
+		dependencyApplication := &meshmanagerv1alpha1.Application{}
 		dependencyName := apitypes.NamespacedName{
 			Namespace: func() string {
 				if dependency.Namespace == "" {
@@ -271,9 +255,7 @@ func (r *ApplicationReconciler) finalize(ctx context.Context, req ctrl.Request,
 			}(),
 			Name: dependency.Name,
 		}
-		logger := log.FromContext(ctx).WithValues("dependency", dependencyName)
-
-		err := r.Client.Get(ctx, dependencyName, dependencyDependantSlice)
+		err := r.Client.Get(ctx, dependencyName, dependencyApplication)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				continue
@@ -284,41 +266,20 @@ func (r *ApplicationReconciler) finalize(ctx context.Context, req ctrl.Request,
 
 		// Removing application from dependant slice of dependency
 		dependantIndex := -1
-		for index, dependant := range dependencyDependantSlice.Spec.Dependants {
+		for index, dependant := range dependencyApplication.Status.Dependants {
 			if dependant.Namespace == application.Namespace && dependant.Name == application.Name {
 				dependantIndex = index
 			}
 		}
 		if dependantIndex > 0 {
-			dependants := dependencyDependantSlice.Spec.Dependants
-			dependencyDependantSlice.Spec.Dependants = append(dependants[:dependantIndex], dependants[dependantIndex+1:]...)
-			if err := r.Client.Update(ctx, dependencyDependantSlice); err != nil {
+			dependants := dependencyApplication.Status.Dependants
+			dependencyApplication.Status.Dependants = append(dependants[:dependantIndex], dependants[dependantIndex+1:]...)
+			if err := r.Client.Update(ctx, dependencyApplication); err != nil {
 				return false, fmt.Errorf("failed to remove application from dependants list: %+w", err)
 			}
 		}
-
-		// Cleaning up any dangling dependency slices
-		if len(dependencyDependantSlice.Spec.Dependants) == 0 {
-			err := r.Client.Delete(ctx, dependencyDependantSlice, client.PropagationPolicy(metav1.DeletePropagationBackground))
-			if err != nil {
-				logger.Error(err, "failed to cleanup dangling dependency slice")
-			} else {
-				logger.Info("cleaned up dangling dependency")
-			}
-		}
 	}
-
-	// Checking whether the current application can be cleaned up
-	applicationDependantSlice := &meshmanagerv1alpha1.DependantSlice{}
-	err := r.Client.Get(ctx, req.NamespacedName, applicationDependantSlice)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return true, nil
-		} else {
-			return false, fmt.Errorf("failed to get existing dependency dependant slice: %+w", err)
-		}
-	}
-	return len(applicationDependantSlice.Spec.Dependants) == 0, nil
+	return len(application.Status.Dependants) == 0, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

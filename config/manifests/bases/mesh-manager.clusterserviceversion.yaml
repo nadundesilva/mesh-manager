@@ -15,11 +15,6 @@ spec:
       kind: Application
       name: applications.mesh-manager.nadundesilva.github.io
       version: v1alpha1
-    - description: DependantSlice is the Schema for the dependantslice API
-      displayName: Dependant Slice
-      kind: DependantSlice
-      name: dependantslice.mesh-manager.nadundesilva.github.io
-      version: v1alpha1
   description: Operator for microservices deployment
   displayName: Mesh Manager
   icon:

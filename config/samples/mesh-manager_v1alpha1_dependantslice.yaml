@@ -1,6 +1,0 @@
-apiVersion: mesh-manager.nadundesilva.github.io/v1alpha1
-kind: DependantSlice
-metadata:
-  name: dependantslice-sample
-spec:
-  dependants: []

@@ -21,6 +21,15 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// ApplicationRef defines a reference to an application
+type ApplicationRef struct {
+	// Namespace is the namespace in which the application resides in
+	Namespace string `json:"namespace,omitempty"`
+
+	// Name is the name of the application
+	Name string `json:"name"`
+}
+
 // ApplicationSpec defines the desired state of Application
 type ApplicationSpec struct {
 	// PodSpec describes the pods that will be created
@@ -34,6 +43,9 @@ type ApplicationSpec struct {
 type ApplicationStatus struct {
 	// MissingDependencies describes the number of dependencies that are not there in the cluster
 	MissingDependencies int `json:"missingDependencies"`
+
+	// Dependants defines the list of applications which depends on this
+	Dependants []ApplicationRef `json:"dependants,omitempty"`
 }
 
 //+kubebuilder:object:root=true
