@@ -123,205 +123,136 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 func (r *ApplicationReconciler) reconcileDeployment(ctx context.Context, req ctrl.Request,
 	application *meshmanagerv1alpha1.Application, labels map[string]string) error {
-	deployment := &appsv1.Deployment{}
-	err := r.Client.Get(ctx, req.NamespacedName, deployment)
-	var isNotFound bool
-	if err != nil {
-		isNotFound = errors.IsNotFound(err)
-		if !isNotFound {
-			return fmt.Errorf("failed to get existing application deployment: %+w", err)
-		}
-	}
-
-	deployment = &appsv1.Deployment{
+	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: req.Namespace,
 			Name:      req.Name,
 			Labels:    labels,
 		},
-		Spec: appsv1.DeploymentSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
-				},
-				Spec: application.Spec.PodSpec,
-			},
-		},
 	}
-	if err := ctrl.SetControllerReference(application, deployment, r.Scheme); err != nil {
-		return fmt.Errorf("failed to set controller reference to application deployment: %+w", err)
-	}
-
-	if isNotFound {
-		if err := r.Client.Create(ctx, deployment); err != nil {
-			return fmt.Errorf("failed to create new application deployment: %+w", err)
+	_, err := ctrl.CreateOrUpdate(ctx, r.Client, deployment, func() error {
+		deployment.Spec.Selector = &metav1.LabelSelector{
+			MatchLabels: labels,
 		}
-	} else {
-		if err := r.Client.Update(ctx, deployment); err != nil {
-			return fmt.Errorf("failed to update existing application deployment: %+w", err)
+		deployment.Spec.Template = corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: labels,
+			},
+			Spec: application.Spec.PodSpec,
 		}
-	}
-	return nil
+		if err := ctrl.SetControllerReference(application, deployment, r.Scheme); err != nil {
+			return fmt.Errorf("failed to set controller reference to application deployment: %+w", err)
+		}
+		return nil
+	})
+	return err
 }
 
 func (r *ApplicationReconciler) reconcileService(ctx context.Context, req ctrl.Request,
 	application *meshmanagerv1alpha1.Application, labels map[string]string) error {
-	service := &corev1.Service{}
-	err := r.Client.Get(ctx, req.NamespacedName, service)
-	var isNotFound bool
-	if err != nil {
-		isNotFound = errors.IsNotFound(err)
-		if !isNotFound {
-			return fmt.Errorf("failed to get existing application service: %+w", err)
-		}
-	}
-
-	ports := []corev1.ServicePort{}
-	for _, container := range application.Spec.PodSpec.Containers {
-		for _, port := range container.Ports {
-			ports = append(ports, corev1.ServicePort{
-				Name:     port.Name,
-				Protocol: port.Protocol,
-				Port:     port.ContainerPort,
-				TargetPort: (func() intstr.IntOrString {
-					if port.Name == "" {
-						return intstr.FromInt(int(port.ContainerPort))
-					} else {
-						return intstr.FromString(port.Name)
-					}
-				})(),
-			})
-		}
-	}
-	service = &corev1.Service{
+	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: req.Namespace,
 			Name:      req.Name,
 			Labels:    labels,
 		},
-		Spec: corev1.ServiceSpec{
-			Selector: labels,
-			Ports:    ports,
-		},
 	}
-	if err := ctrl.SetControllerReference(application, service, r.Scheme); err != nil {
-		return fmt.Errorf("failed to set controller reference to application service: %+w", err)
-	}
+	_, err := ctrl.CreateOrUpdate(ctx, r.Client, service, func() error {
+		ports := []corev1.ServicePort{}
+		for _, container := range application.Spec.PodSpec.Containers {
+			for _, port := range container.Ports {
+				ports = append(ports, corev1.ServicePort{
+					Name:     port.Name,
+					Protocol: port.Protocol,
+					Port:     port.ContainerPort,
+					TargetPort: (func() intstr.IntOrString {
+						if port.Name == "" {
+							return intstr.FromInt(int(port.ContainerPort))
+						} else {
+							return intstr.FromString(port.Name)
+						}
+					})(),
+				})
+			}
+		}
+		service.Spec.Selector = labels
+		service.Spec.Ports = ports
 
-	if isNotFound {
-		if err := r.Client.Create(ctx, service); err != nil {
-			return fmt.Errorf("failed to create new application service: %+w", err)
+		if err := ctrl.SetControllerReference(application, service, r.Scheme); err != nil {
+			return fmt.Errorf("failed to set controller reference to application service: %+w", err)
 		}
-	} else {
-		if err := r.Client.Update(ctx, service); err != nil {
-			return fmt.Errorf("failed to update existing application service: %+w", err)
-		}
-	}
-	return nil
+		return nil
+	})
+	return err
 }
 
 func (r *ApplicationReconciler) reconcileDependantSlices(ctx context.Context, req ctrl.Request,
 	application *meshmanagerv1alpha1.Application, labels map[string]string) error {
-	dependantSlice := &meshmanagerv1alpha1.DependantSlice{}
-	err := r.Client.Get(ctx, req.NamespacedName, dependantSlice)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			dependantSlice := &meshmanagerv1alpha1.DependantSlice{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: req.Namespace,
-					Name:      req.Name,
-					Labels:    labels,
-				},
-				Spec: meshmanagerv1alpha1.DependantSliceSpec{},
-			}
-			if err := ctrl.SetControllerReference(application, dependantSlice, r.Scheme); err != nil {
-				return fmt.Errorf("failed to set controller reference to new dependant slice: %+w", err)
-			}
-			if err := r.Client.Create(ctx, dependantSlice); err != nil {
-				return fmt.Errorf("failed to create new application dependant slice: %+w", err)
-			}
-		} else {
-			return fmt.Errorf("failed to get existing application dependant slice: %+w", err)
-		}
-	} else {
+	// Creating dependant slice for the current application
+	dependantSlice := &meshmanagerv1alpha1.DependantSlice{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: req.Namespace,
+			Name:      req.Name,
+			Labels:    labels,
+		},
+	}
+	_, err := ctrl.CreateOrUpdate(ctx, r.Client, dependantSlice, func() error {
 		if err := ctrl.SetControllerReference(application, dependantSlice, r.Scheme); err != nil {
-			return fmt.Errorf("failed to set controller reference to existing dependant slice: %+w", err)
+			return fmt.Errorf("failed to set controller reference to application service: %+w", err)
 		}
-		if err := r.Client.Update(ctx, dependantSlice); err != nil {
-			return fmt.Errorf("failed to update existing application dependant slice: %+w", err)
-		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
+	// Updating dependant slices for dependencies
 	applicationRef := meshmanagerv1alpha1.ApplicationRef{
 		Namespace: application.Namespace,
 		Name:      application.Name,
 	}
 	application.Status.MissingDependencies = 0
 	for _, dependency := range application.Spec.Dependencies {
-		dependencyDependantSlice := &meshmanagerv1alpha1.DependantSlice{}
-		dependencyName := apitypes.NamespacedName{
-			Namespace: func() string {
-				if dependency.Namespace == "" {
-					return application.GetNamespace()
+		dependencyDependantSlice := &meshmanagerv1alpha1.DependantSlice{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: func() string {
+					if dependency.Namespace == "" {
+						return application.GetNamespace()
+					} else {
+						return dependency.Namespace
+					}
+				}(),
+				Name:   dependency.Name,
+				Labels: labels,
+			},
+		}
+		_, err = ctrl.CreateOrUpdate(ctx, r.Client, dependencyDependantSlice, func() error {
+			dependencyName := apitypes.NamespacedName{
+				Namespace: dependencyDependantSlice.Namespace,
+				Name:      dependencyDependantSlice.Name,
+			}
+
+			dependencyApplication := &meshmanagerv1alpha1.Application{}
+			err = r.Client.Get(ctx, dependencyName, dependencyApplication)
+			if err != nil {
+				if errors.IsNotFound(err) {
+					application.Status.MissingDependencies += 1
 				} else {
-					return dependency.Namespace
+					return fmt.Errorf("failed to get existing dependency: %+w", err)
 				}
-			}(),
-			Name: dependency.Name,
-		}
+			}
 
-		err := r.Client.Get(ctx, dependencyName, dependencyDependantSlice)
-		var isDependantSliceNotFound bool
-		if err != nil {
-			isDependantSliceNotFound = errors.IsNotFound(err)
-			if isDependantSliceNotFound {
-				dependencyDependantSlice = &meshmanagerv1alpha1.DependantSlice{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: dependencyName.Namespace,
-						Name:      dependencyName.Name,
-						Labels:    labels,
-					},
-					Spec: meshmanagerv1alpha1.DependantSliceSpec{
-						Dependants: []meshmanagerv1alpha1.ApplicationRef{},
-					},
+			isDependencyAlreadyLinked := false
+			for _, dependant := range dependencyDependantSlice.Spec.Dependants {
+				if dependant.Namespace == applicationRef.Namespace && dependant.Name == applicationRef.Name {
+					isDependencyAlreadyLinked = true
 				}
-			} else {
-				return fmt.Errorf("failed to get existing dependency dependant slice: %+w", err)
 			}
-		}
-
-		dependencyApplication := &meshmanagerv1alpha1.Application{}
-		err = r.Client.Get(ctx, dependencyName, dependencyApplication)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				application.Status.MissingDependencies += 1
-			} else {
-				return fmt.Errorf("failed to get existing dependency: %+w", err)
+			if !isDependencyAlreadyLinked {
+				dependencyDependantSlice.Spec.Dependants = append(dependencyDependantSlice.Spec.Dependants, applicationRef)
 			}
-		}
-
-		isDependencyLinked := false
-		for _, dependant := range dependencyDependantSlice.Spec.Dependants {
-			if dependant.Namespace == applicationRef.Namespace && dependant.Name == applicationRef.Name {
-				isDependencyLinked = true
-			}
-		}
-		if !isDependencyLinked {
-			dependencyDependantSlice.Spec.Dependants = append(dependencyDependantSlice.Spec.Dependants, applicationRef)
-		}
-
-		if isDependantSliceNotFound {
-			if err := r.Client.Create(ctx, dependencyDependantSlice); err != nil {
-				return fmt.Errorf("failed to create new dependency dependant slice: %+w", err)
-			}
-		} else {
-			if err := r.Client.Update(ctx, dependencyDependantSlice); err != nil {
-				return fmt.Errorf("failed to update existing dependency dependant slice: %+w", err)
-			}
-		}
+			return nil
+		})
 	}
 	return nil
 }
@@ -377,7 +308,7 @@ func (r *ApplicationReconciler) finalize(ctx context.Context, req ctrl.Request,
 		}
 	}
 
-	// Checking whether the application can be cleaned up
+	// Checking whether the current application can be cleaned up
 	applicationDependantSlice := &meshmanagerv1alpha1.DependantSlice{}
 	err := r.Client.Get(ctx, req.NamespacedName, applicationDependantSlice)
 	if err != nil {
