@@ -44,8 +44,8 @@ type ApplicationStatus struct {
 	// MissingDependencies describes the number of dependencies that are not there in the cluster
 	MissingDependencies int `json:"missingDependencies"`
 
-	// Dependants defines the list of applications which depends on this
-	Dependants []ApplicationRef `json:"dependants,omitempty"`
+	// Dependents defines the list of applications which depends on this
+	Dependents []ApplicationRef `json:"dependents,omitempty"`
 }
 
 //+kubebuilder:object:root=true

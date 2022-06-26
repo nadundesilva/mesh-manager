@@ -80,6 +80,13 @@ spec:
       clusterPermissions:
       - rules:
         - apiGroups:
+          - ""
+          resources:
+          - events
+          verbs:
+          - create
+          - patch
+        - apiGroups:
           - mesh-manager.nadundesilva.github.io
           resources:
           - applications

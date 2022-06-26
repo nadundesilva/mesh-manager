@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -34,19 +35,26 @@ import (
 	meshmanagerv1alpha1 "github.com/nadundesilva/mesh-manager/api/v1alpha1"
 )
 
-const groupFqn = "mesh-manager.nadundesilva.github.io"
-const applicationFinalizer = groupFqn + "/finalizer"
-const applicationLabel = groupFqn + "/application"
+const (
+	groupFqn             = "mesh-manager.nadundesilva.github.io"
+	applicationFinalizer = groupFqn + "/finalizer"
+	applicationLabel     = groupFqn + "/application"
+
+	RemovedDependentEvent = "RemovedDependent"
+	AddedDependentEvent   = "AddedDependent"
+)
 
 // ApplicationReconciler reconciles a Application object
 type ApplicationReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=mesh-manager.nadundesilva.github.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=mesh-manager.nadundesilva.github.io,resources=applications/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=mesh-manager.nadundesilva.github.io,resources=applications/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -214,7 +222,7 @@ func (r *ApplicationReconciler) reconcileNetworking(ctx context.Context, req ctr
 		netpol.Spec.PolicyTypes = []networkingv1.PolicyType{
 			networkingv1.PolicyTypeIngress,
 		}
-		if len(application.Status.Dependants) > 0 {
+		if len(application.Status.Dependents) > 0 {
 			netpol.Spec.Ingress = []networkingv1.NetworkPolicyIngressRule{
 				{
 					Ports: func() []networkingv1.NetworkPolicyPort {
@@ -229,16 +237,16 @@ func (r *ApplicationReconciler) reconcileNetworking(ctx context.Context, req ctr
 					}(),
 					From: func() []networkingv1.NetworkPolicyPeer {
 						peers := []networkingv1.NetworkPolicyPeer{}
-						for _, dependant := range application.Status.Dependants {
+						for _, dependent := range application.Status.Dependents {
 							peers = append(peers, networkingv1.NetworkPolicyPeer{
 								NamespaceSelector: &metav1.LabelSelector{
 									MatchLabels: map[string]string{
-										"kubernetes.io/metadata.name": dependant.Namespace,
+										"kubernetes.io/metadata.name": dependent.Namespace,
 									},
 								},
 								PodSelector: &metav1.LabelSelector{
 									MatchLabels: map[string]string{
-										applicationLabel: dependant.Name,
+										applicationLabel: dependent.Name,
 									},
 								},
 							})
@@ -287,20 +295,21 @@ func (r *ApplicationReconciler) reconcileDependencies(ctx context.Context, req c
 			}
 		}
 
-		// Adding current application to dependency's dependants list
+		// Adding current application to dependency's dependents list
 		isDependencyAlreadyLinked := false
-		for _, dependant := range dependencyApplication.Status.Dependants {
-			if dependant.Namespace == applicationRef.Namespace && dependant.Name == applicationRef.Name {
+		for _, dependent := range dependencyApplication.Status.Dependents {
+			if dependent.Namespace == applicationRef.Namespace && dependent.Name == applicationRef.Name {
 				isDependencyAlreadyLinked = true
 			}
 		}
 		if !isDependencyAlreadyLinked {
-			dependencyApplication.Status.Dependants = append(dependencyApplication.Status.Dependants, applicationRef)
-		}
-
-		if err := r.Status().Update(ctx, dependencyApplication); err != nil {
-			return fmt.Errorf("failed to update dependency application %s/%s: %+w",
-				dependencyName.Namespace, dependencyName.Name, err)
+			dependencyApplication.Status.Dependents = append(dependencyApplication.Status.Dependents, applicationRef)
+			if err := r.Status().Update(ctx, dependencyApplication); err != nil {
+				return fmt.Errorf("failed to update dependency application %s/%s: %+w",
+					dependencyName.Namespace, dependencyName.Name, err)
+			}
+			r.Recorder.Eventf(dependencyApplication, "Normal", AddedDependentEvent, "Added dependent %s/%s",
+				application.Namespace, application.Name)
 		}
 	}
 	return nil
@@ -325,26 +334,28 @@ func (r *ApplicationReconciler) finalize(ctx context.Context, req ctrl.Request,
 			if errors.IsNotFound(err) {
 				continue
 			} else {
-				return false, fmt.Errorf("failed to get existing dependency dependant slice: %+w", err)
+				return false, fmt.Errorf("failed to get existing dependency dependent slice: %+w", err)
 			}
 		}
 
-		// Removing application from dependant slice of dependency
-		dependantIndex := -1
-		for index, dependant := range dependencyApplication.Status.Dependants {
-			if dependant.Namespace == application.Namespace && dependant.Name == application.Name {
-				dependantIndex = index
+		// Removing application from dependent slice of dependency
+		dependentIndex := -1
+		for index, dependent := range dependencyApplication.Status.Dependents {
+			if dependent.Namespace == application.Namespace && dependent.Name == application.Name {
+				dependentIndex = index
 			}
 		}
-		if dependantIndex >= 0 {
-			dependants := dependencyApplication.Status.Dependants
-			dependencyApplication.Status.Dependants = append(dependants[:dependantIndex], dependants[dependantIndex+1:]...)
+		if dependentIndex >= 0 {
+			dependents := dependencyApplication.Status.Dependents
+			dependencyApplication.Status.Dependents = append(dependents[:dependentIndex], dependents[dependentIndex+1:]...)
 			if err := r.Status().Update(ctx, dependencyApplication); err != nil {
-				return false, fmt.Errorf("failed to remove application from dependants list: %+w", err)
+				return false, fmt.Errorf("failed to remove application from dependents list: %+w", err)
 			}
+			r.Recorder.Eventf(dependencyApplication, "Normal", RemovedDependentEvent, "Removed dependent %s/%s",
+				application.Namespace, application.Name)
 		}
 	}
-	return len(application.Status.Dependants) == 0, nil
+	return len(application.Status.Dependents) == 0, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

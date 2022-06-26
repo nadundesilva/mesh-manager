@@ -6817,8 +6817,8 @@ spec:
           status:
             description: ApplicationStatus defines the observed state of Application
             properties:
-              dependants:
-                description: Dependants defines the list of applications which depends
+              dependents:
+                description: Dependents defines the list of applications which depends
                   on this
                 items:
                   description: ApplicationRef defines a reference to an application
