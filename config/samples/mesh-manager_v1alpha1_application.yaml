@@ -1,7 +1,7 @@
 apiVersion: mesh-manager.nadundesilva.github.io/v1alpha1
 kind: Application
 metadata:
-  name: application-sample-dependency
+  name: app-dependency
 spec:
   podSpec:
     containers:
@@ -13,7 +13,7 @@ spec:
 apiVersion: mesh-manager.nadundesilva.github.io/v1alpha1
 kind: Application
 metadata:
-  name: application-sample
+  name: app
 spec:
   podSpec:
     containers:
@@ -22,4 +22,4 @@ spec:
       ports:
       - containerPort: 80
   dependencies:
-  - name: application-sample-dependency
+  - name: app-dependency

@@ -8,12 +8,13 @@ metadata:
           "apiVersion": "mesh-manager.nadundesilva.github.io/v1alpha1",
           "kind": "Application",
           "metadata": {
-            "name": "application-sample"
+            "name": "app",
+            "namespace": "application-sample"
           },
           "spec": {
             "dependencies": [
               {
-                "name": "application-sample-dependency"
+                "name": "app-dependency"
               }
             ],
             "podSpec": {
@@ -35,7 +36,8 @@ metadata:
           "apiVersion": "mesh-manager.nadundesilva.github.io/v1alpha1",
           "kind": "Application",
           "metadata": {
-            "name": "application-sample-dependency"
+            "name": "app-dependency",
+            "namespace": "application-sample"
           },
           "spec": {
             "podSpec": {
