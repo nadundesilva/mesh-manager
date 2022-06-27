@@ -96,18 +96,22 @@ jobs:
               run: |
                 docker tag "nadunrds/mesh-manager:${{ env.RELEASE_PATCH_VERSION }}" "nadunrds/mesh-manager:${{ env.RELEASE_MAJOR_VERSION }}"
                 docker tag "nadunrds/mesh-manager:${{ env.RELEASE_PATCH_VERSION }}" "nadunrds/mesh-manager:${{ env.RELEASE_MINOR_VERSION }}"
+                docker tag "nadunrds/mesh-manager:${{ env.RELEASE_PATCH_VERSION }}" "nadunrds/mesh-manager:latest"
                 
                 make docker-push IMG="nadunrds/mesh-manager:${{ env.RELEASE_MAJOR_VERSION }}"
                 make docker-push IMG="nadunrds/mesh-manager:${{ env.RELEASE_MINOR_VERSION }}"
                 make docker-push IMG="nadunrds/mesh-manager:${{ env.RELEASE_PATCH_VERSION }}"
+                make docker-push IMG="nadunrds/mesh-manager:latest"
             - name: Pushing Controller Bundle
               run: |
                 docker tag "nadunrds/mesh-manager-bundle:${{ env.RELEASE_PATCH_VERSION }}" "nadunrds/mesh-manager-bundle:${{ env.RELEASE_MAJOR_VERSION }}"
                 docker tag "nadunrds/mesh-manager-bundle:${{ env.RELEASE_PATCH_VERSION }}" "nadunrds/mesh-manager-bundle:${{ env.RELEASE_MINOR_VERSION }}"
+                docker tag "nadunrds/mesh-manager-bundle:${{ env.RELEASE_PATCH_VERSION }}" "nadunrds/mesh-manager-bundle:latest"
                 
                 make bundle-push BUNDLE_IMG="nadunrds/mesh-manager:${{ env.RELEASE_MAJOR_VERSION }}"
                 make bundle-push BUNDLE_IMG="nadunrds/mesh-manager:${{ env.RELEASE_MINOR_VERSION }}"
                 make bundle-push BUNDLE_IMG="nadunrds/mesh-manager:${{ env.RELEASE_PATCH_VERSION }}"
+                make bundle-push BUNDLE_IMG="nadunrds/mesh-manager:latest"
             - name: Prepare Release Note
               run: |
                 sed -i 's/{{VERSION_TAG}}/v${{ github.event.inputs.release-version }}/g' .github/RELEASE_NOTE
