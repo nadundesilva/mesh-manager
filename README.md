@@ -1,4 +1,4 @@
-# [WIP] Mesh Manager
+# Mesh Manager
 
 [![Main Branch Build](https://github.com/nadundesilva/mesh-manager/actions/workflows/branch-build.yaml/badge.svg)](https://github.com/nadundesilva/mesh-manager/actions/workflows/branch-build.yaml)
 [![Vulnerabilities Scan](https://github.com/nadundesilva/mesh-manager/actions/workflows/vulnerabilities-scan.yaml/badge.svg)](https://github.com/nadundesilva/mesh-manager/actions/workflows/vulnerabilities-scan.yaml)

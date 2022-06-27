@@ -137,11 +137,7 @@ jobs:
                 addToReleaseNote ""
                 addToReleaseNote "- "
 
-                source .github/scripts/utils.sh
-                update_controller_image ${{ github.workspace }}/kustomize latest
-
                 git add .github/RELEASE_NOTE
-                git add kustomize
                 git commit -m "[Automated] Preparing for next development iteration"
 
                 git checkout -b "release-${RELEASE_PATCH_VERSION}"
