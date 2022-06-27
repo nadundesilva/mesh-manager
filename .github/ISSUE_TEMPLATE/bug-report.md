@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Create a report to help improve the K8s Replicator
+about: Create a report to help improve the Mesh Manager
 title: ''
 labels: Type/Bug
 assignees: ''

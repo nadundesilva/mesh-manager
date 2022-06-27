@@ -68,8 +68,8 @@ operator-sdk cleanup mesh-manager
 
 ## Support
 
-:grey_question: If you need support or have a question about the K8s Replicator, reach out through [Discussions](https://github.com/nadundesilva/k8s-replicator/discussions).
+:grey_question: If you need support or have a question about the Mesh Manager, reach out through [Discussions](https://github.com/nadundesilva/mesh-manager/discussions).
 
-:bug: If you have found a bug and would like to get it fixed, try opening a [Bug Report](https://github.com/nadundesilva/k8s-replicator/issues/new?labels=Type%2FBug&template=bug-report.md).
+:bug: If you have found a bug and would like to get it fixed, try opening a [Bug Report](https://github.com/nadundesilva/mesh-manager/issues/new?labels=Type%2FBug&template=bug-report.md).
 
-:bulb: If you have a new idea or want to get a new feature or improvement added to the K8s Replicator, try creating a [Feature Request](https://github.com/nadundesilva/k8s-replicator/issues/new?labels=Type%2FFeature&template=feature-request.md).
+:bulb: If you have a new idea or want to get a new feature or improvement added to the Mesh Manager, try creating a [Feature Request](https://github.com/nadundesilva/mesh-manager/issues/new?labels=Type%2FFeature&template=feature-request.md).

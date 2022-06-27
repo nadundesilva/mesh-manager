@@ -1,0 +1,156 @@
+name: Release
+
+on:
+    workflow_dispatch:
+        inputs:
+            release-version:
+                description: Release Version (Eg:- 1.0.0)
+                required: true
+                type: string
+
+jobs:
+    publish-release:
+        name: Publish Release
+        runs-on: ubuntu-latest
+        steps:
+            - name: Generate Version
+              run: |
+                echo "Release Version: ${{ github.event.inputs.release-version }}"
+
+                if [[ "${{ github.event.inputs.release-version }}" =~ ^\d+\.\d+\.\d+$ ]]; then
+                  echo "Unexpected format in release version version"
+                  exit 1
+                fi
+
+                MAJOR="$(echo -n "${{ github.event.inputs.release-version }}" | cut -d "." -f1)"
+                MINOR="$(echo -n "${{ github.event.inputs.release-version }}" | cut -d "." -f2)"
+                PATCH="$(echo -n "${{ github.event.inputs.release-version }}" | cut -d "." -f3)"
+
+                RELEASE_MAJOR_VERSION="${MAJOR}"
+                RELEASE_MINOR_VERSION="${MAJOR}.${MINOR}"
+                RELEASE_PATCH_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+                addEnvVar() {
+                  echo "${1}=${2}" >> "${GITHUB_ENV}"
+                }
+                addEnvVar "RELEASE_MAJOR_VERSION" "${RELEASE_MAJOR_VERSION}"
+                addEnvVar "RELEASE_MINOR_VERSION" "${RELEASE_MINOR_VERSION}"
+                addEnvVar "RELEASE_PATCH_VERSION" "${RELEASE_PATCH_VERSION}"
+
+                echo "Release Major Version: ${RELEASE_MAJOR_VERSION}"
+                echo "Release Minor Version: ${RELEASE_MINOR_VERSION}"
+                echo "Release Patch Version: ${RELEASE_PATCH_VERSION}"
+            - name: Preparing Git CLI
+              run: |
+                git config --global user.name "${{ github.actor }}"
+                git config --global user.email nadunrds@gmail.com
+            - name: Checkout repository
+              uses: actions/checkout@v3
+              with:
+                  fetch-depth: 0
+            - name: Setup GoLang
+              uses: actions/setup-go@v3
+              with:
+                  go-version: "^1.18"
+            - name: Setup Operator SDK
+              run: |
+                  .github/scripts/setup-operator-sdk.sh
+            - name: Generate code
+              run: make generate manifests bundle
+              env:
+                  IMG: "nadunrds/mesh-manager:${{ env.RELEASE_PATCH_VERSION }}"
+                  BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ env.RELEASE_PATCH_VERSION }}"
+            - name: Building Controller
+              run: make docker-build
+              env:
+                  IMG: "nadunrds/mesh-manager:${{ env.RELEASE_PATCH_VERSION }}"
+            - name: Run Trivy vulnerability scanner on Controller
+              uses: aquasecurity/trivy-action@master
+              with:
+                  image-ref: nadunrds/mesh-manager:${{ env.RELEASE_PATCH_VERSION }}
+                  format: 'table'
+                  exit-code: '1'
+                  ignore-unfixed: true
+            - name: Building Controller Bundle
+              run: make bundle-build
+              env:
+                  BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ env.RELEASE_PATCH_VERSION }}"
+            - name: Run Trivy vulnerability scanner on Controller Bundle
+              uses: aquasecurity/trivy-action@master
+              with:
+                  image-ref: nadunrds/mesh-manager-bundle:${{ env.RELEASE_PATCH_VERSION }}
+                  format: 'table'
+                  exit-code: '1'
+                  ignore-unfixed: true
+            - name: Login to the Container registry
+              uses: docker/login-action@v2
+              with:
+                  username: nadunrds
+                  password: ${{ secrets.docker_hub_token }}
+            - name: Create Release Tag
+              run: |
+                GITHUB_TAG="v${{ github.event.inputs.release-version }}"
+                git tag "${GITHUB_TAG}"
+                git push origin "${GITHUB_TAG}"
+            - name: Pushing Controller
+              run: |
+                docker tag "nadunrds/mesh-manager:${{ env.RELEASE_PATCH_VERSION }}" "nadunrds/mesh-manager:${{ env.RELEASE_MAJOR_VERSION }}"
+                docker tag "nadunrds/mesh-manager:${{ env.RELEASE_PATCH_VERSION }}" "nadunrds/mesh-manager:${{ env.RELEASE_MINOR_VERSION }}"
+                
+                make docker-push IMG="nadunrds/mesh-manager:${{ env.RELEASE_MAJOR_VERSION }}"
+                make docker-push IMG="nadunrds/mesh-manager:${{ env.RELEASE_MINOR_VERSION }}"
+                make docker-push IMG="nadunrds/mesh-manager:${{ env.RELEASE_PATCH_VERSION }}"
+            - name: Pushing Controller Bundle
+              run: |
+                docker tag "nadunrds/mesh-manager-bundle:${{ env.RELEASE_PATCH_VERSION }}" "nadunrds/mesh-manager-bundle:${{ env.RELEASE_MAJOR_VERSION }}"
+                docker tag "nadunrds/mesh-manager-bundle:${{ env.RELEASE_PATCH_VERSION }}" "nadunrds/mesh-manager-bundle:${{ env.RELEASE_MINOR_VERSION }}"
+                
+                make bundle-push BUNDLE_IMG="nadunrds/mesh-manager:${{ env.RELEASE_MAJOR_VERSION }}"
+                make bundle-push BUNDLE_IMG="nadunrds/mesh-manager:${{ env.RELEASE_MINOR_VERSION }}"
+                make bundle-push BUNDLE_IMG="nadunrds/mesh-manager:${{ env.RELEASE_PATCH_VERSION }}"
+            - name: Prepare Release Note
+              run: |
+                sed -i 's/{{VERSION_TAG}}/v${{ github.event.inputs.release-version }}/g' .github/RELEASE_NOTE
+            - name: Create Release
+              id: create-release
+              uses: actions/create-release@v1
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                tag_name: v${{ github.event.inputs.release-version }}
+                release_name: Mesh Manager v${{ github.event.inputs.release-version }}
+                body_path: .github/RELEASE_NOTE
+                draft: false
+                prerelease: false
+            - name: Prepare for next release cycle
+              run: |
+                addToReleaseNote() {
+                  echo "${1}" >> ".github/RELEASE_NOTE"
+                }
+
+                echo -n "" > ".github/RELEASE_NOTE"
+                addToReleaseNote "#### How to use"
+                addToReleaseNote ""
+                addToReleaseNote "Check the [Read Me](https://github.com/nadundesilva/mesh-manager/tree/{{VERSION_TAG}}#how-to-use) for instructions on how to use the Operator."
+                addToReleaseNote ""
+                addToReleaseNote "#### Changelog:"
+                addToReleaseNote ""
+                addToReleaseNote "- "
+
+                source .github/scripts/utils.sh
+                update_controller_image ${{ github.workspace }}/kustomize latest
+
+                git add .github/RELEASE_NOTE
+                git add kustomize
+                git commit -m "[Automated] Preparing for next development iteration"
+
+                git checkout -b "release-${RELEASE_PATCH_VERSION}"
+                git push origin "release-${RELEASE_PATCH_VERSION}"
+            - name: Create Release Sync Pull Request
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                gh pr create --assignee "${{ github.actor }}" \
+                  --base main --head "release-${RELEASE_PATCH_VERSION}" \
+                  --title "[Automated] Release Sync after v${{ github.event.inputs.release-version }}" \
+                  --body "Sync changes with master after release v${{ github.event.inputs.release-version }}"

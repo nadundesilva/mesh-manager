@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest an idea for the K8s Replicator
+about: Suggest an idea for the Mesh Manager
 title: ''
 labels: Type/Feature
 assignees: ''
