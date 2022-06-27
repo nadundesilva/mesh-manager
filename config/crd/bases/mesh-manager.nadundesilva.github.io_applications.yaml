@@ -6838,7 +6838,20 @@ spec:
               missingDependencies:
                 description: MissingDependencies describes the number of dependencies
                   that are not there in the cluster
-                type: integer
+                items:
+                  description: ApplicationRef defines a reference to an application
+                  properties:
+                    name:
+                      description: Name is the name of the application
+                      type: string
+                    namespace:
+                      description: Namespace is the namespace in which the application
+                        resides in
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
             required:
             - missingDependencies
             type: object

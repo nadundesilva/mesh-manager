@@ -40,8 +40,18 @@ const (
 	applicationFinalizer = groupFqn + "/finalizer"
 	applicationLabel     = groupFqn + "/application"
 
-	RemovedDependentEvent = "RemovedDependent"
-	AddedDependentEvent   = "AddedDependent"
+	RemovedDependentEvent            = "RemovedDependent"
+	AddedDependentEvent              = "AddedDependent"
+	FailedDependencyResolutionEvent  = "FailedDependencyResolution"
+	CreatedDeploymentEvent           = "CreatedDeployment"
+	UpdatedDeploymentEvent           = "UpdatedDeployment"
+	FailedUpdatingDeploymentEvent    = "FailedUpdatingDeployment"
+	CreatedServiceEvent              = "CreatedService"
+	UpdatedServiceEvent              = "UpdatedService"
+	FailedUpdatingServiceEvent       = "FailedUpdatingService"
+	CreatedNetworkPolicyEvent        = "CreatedNetworkPolicy"
+	UpdatedNetworkPolicyEvent        = "UpdatedNetworkPolicy"
+	FailedUpdatingNetworkPolicyEvent = "FailedUpdatingNetworkPolicy"
 )
 
 // ApplicationReconciler reconciles a Application object
@@ -119,13 +129,14 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Creating sub-resources
-	labels := map[string]string{
-		applicationLabel: req.Name,
-	}
-	for k, v := range application.Labels {
-		labels[k] = v
-	}
-	if len(application.Spec.Dependencies) == 0 || application.Status.MissingDependencies == 0 {
+	if len(application.Spec.Dependencies) == 0 || len(application.Status.MissingDependencies) == 0 {
+		labels := map[string]string{
+			applicationLabel: req.Name,
+		}
+		for k, v := range application.Labels {
+			labels[k] = v
+		}
+
 		if err := r.reconcileDeployment(ctx, req, application, labels); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to reconcile application deployment: %+w", err)
 		}
@@ -134,6 +145,8 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 		return ctrl.Result{}, nil
 	} else {
+		r.Recorder.Eventf(application, "Warning", FailedDependencyResolutionEvent,
+			"Failed to find all dependencies within the cluster")
 		logger.Info("Application resources not created since it contains missing dependencies",
 			"totalDependenciesCount", len(application.Spec.Dependencies),
 			"missingDependenciesCount", application.Status.MissingDependencies)
@@ -150,7 +163,7 @@ func (r *ApplicationReconciler) reconcileDeployment(ctx context.Context, req ctr
 			Labels:    labels,
 		},
 	}
-	_, err := ctrl.CreateOrUpdate(ctx, r.Client, deployment, func() error {
+	result, err := ctrl.CreateOrUpdate(ctx, r.Client, deployment, func() error {
 		deployment.Spec.Selector = &metav1.LabelSelector{
 			MatchLabels: labels,
 		}
@@ -165,7 +178,19 @@ func (r *ApplicationReconciler) reconcileDeployment(ctx context.Context, req ctr
 		}
 		return nil
 	})
-	return err
+	if err != nil {
+		r.Recorder.Eventf(application, "Warning", FailedUpdatingDeploymentEvent,
+			"Failed creating/updating deployment: %v", err)
+		return err
+	}
+	if result == controllerutil.OperationResultCreated {
+		r.Recorder.Eventf(application, "Normal", CreatedDeploymentEvent, "Created deployment: %s",
+			deployment.GetName())
+	} else if result == controllerutil.OperationResultUpdated {
+		r.Recorder.Eventf(application, "Normal", UpdatedDeploymentEvent, "Updated deployment: %s",
+			deployment.GetName())
+	}
+	return nil
 }
 
 func (r *ApplicationReconciler) reconcileNetworking(ctx context.Context, req ctrl.Request,
@@ -195,7 +220,7 @@ func (r *ApplicationReconciler) reconcileNetworking(ctx context.Context, req ctr
 			Labels:    labels,
 		},
 	}
-	_, err := ctrl.CreateOrUpdate(ctx, r.Client, service, func() error {
+	result, err := ctrl.CreateOrUpdate(ctx, r.Client, service, func() error {
 		service.Spec.Selector = labels
 		service.Spec.Ports = ports
 
@@ -205,7 +230,16 @@ func (r *ApplicationReconciler) reconcileNetworking(ctx context.Context, req ctr
 		return nil
 	})
 	if err != nil {
+		r.Recorder.Eventf(application, "Warning", FailedUpdatingServiceEvent,
+			"Failed creating/updating service: %v", err)
 		return err
+	}
+	if result == controllerutil.OperationResultCreated {
+		r.Recorder.Eventf(application, "Normal", CreatedServiceEvent, "Created service: %s",
+			service.GetName())
+	} else if result == controllerutil.OperationResultUpdated {
+		r.Recorder.Eventf(application, "Normal", UpdatedServiceEvent, "Updated service: %s",
+			service.GetName())
 	}
 
 	netpol := &networkingv1.NetworkPolicy{
@@ -215,7 +249,7 @@ func (r *ApplicationReconciler) reconcileNetworking(ctx context.Context, req ctr
 			Labels:    labels,
 		},
 	}
-	_, err = ctrl.CreateOrUpdate(ctx, r.Client, netpol, func() error {
+	result, err = ctrl.CreateOrUpdate(ctx, r.Client, netpol, func() error {
 		netpol.Spec.PodSelector = metav1.LabelSelector{
 			MatchLabels: labels,
 		}
@@ -262,7 +296,19 @@ func (r *ApplicationReconciler) reconcileNetworking(ctx context.Context, req ctr
 		}
 		return nil
 	})
-	return err
+	if err != nil {
+		r.Recorder.Eventf(application, "Warning", FailedUpdatingNetworkPolicyEvent,
+			"Failed creating/updating network policy: %v", err)
+		return err
+	}
+	if result == controllerutil.OperationResultCreated {
+		r.Recorder.Eventf(application, "Normal", CreatedNetworkPolicyEvent, "Created network policy: %s",
+			netpol.GetName())
+	} else if result == controllerutil.OperationResultUpdated {
+		r.Recorder.Eventf(application, "Normal", UpdatedNetworkPolicyEvent, "Updated network policy: %s",
+			netpol.GetName())
+	}
+	return nil
 }
 
 func (r *ApplicationReconciler) reconcileDependencies(ctx context.Context, req ctrl.Request,
@@ -271,7 +317,7 @@ func (r *ApplicationReconciler) reconcileDependencies(ctx context.Context, req c
 		Namespace: application.Namespace,
 		Name:      application.Name,
 	}
-	application.Status.MissingDependencies = 0
+	application.Status.MissingDependencies = []meshmanagerv1alpha1.ApplicationRef{}
 	for _, dependency := range application.Spec.Dependencies {
 		dependencyName := apitypes.NamespacedName{
 			Namespace: func() string {
@@ -288,7 +334,12 @@ func (r *ApplicationReconciler) reconcileDependencies(ctx context.Context, req c
 		err := r.Get(ctx, dependencyName, dependencyApplication)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				application.Status.MissingDependencies += 1
+				dependencyRef := meshmanagerv1alpha1.ApplicationRef{
+					Namespace: dependencyName.Namespace,
+					Name:      dependencyName.Name,
+				}
+				application.Status.MissingDependencies = append(application.Status.MissingDependencies,
+					dependencyRef)
 				continue
 			} else {
 				return fmt.Errorf("failed to get existing dependency: %+w", err)

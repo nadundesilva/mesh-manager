@@ -42,7 +42,7 @@ type ApplicationSpec struct {
 // ApplicationStatus defines the observed state of Application
 type ApplicationStatus struct {
 	// MissingDependencies describes the number of dependencies that are not there in the cluster
-	MissingDependencies int `json:"missingDependencies"`
+	MissingDependencies []ApplicationRef `json:"missingDependencies"`
 
 	// Dependents defines the list of applications which depends on this
 	Dependents []ApplicationRef `json:"dependents,omitempty"`
