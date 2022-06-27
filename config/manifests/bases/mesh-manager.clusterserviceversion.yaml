@@ -10,10 +10,10 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: Application is the Schema for the applications API
-      displayName: Application
-      kind: Application
-      name: applications.mesh-manager.nadundesilva.github.io
+    - description: Microservice is the Schema for the microservices API
+      displayName: Microservice
+      kind: Microservice
+      name: microservices.mesh-manager.nadundesilva.github.io
       version: v1alpha1
   description: Operator for microservices deployment
   displayName: Mesh Manager

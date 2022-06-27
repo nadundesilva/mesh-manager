@@ -4,20 +4,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: applications.mesh-manager.nadundesilva.github.io
+  name: microservices.mesh-manager.nadundesilva.github.io
 spec:
   group: mesh-manager.nadundesilva.github.io
   names:
-    kind: Application
-    listKind: ApplicationList
-    plural: applications
-    singular: application
+    kind: Microservice
+    listKind: MicroserviceList
+    plural: microservices
+    singular: microservice
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Application is the Schema for the applications API
+        description: Microservice is the Schema for the microservices API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -32,19 +32,19 @@ spec:
           metadata:
             type: object
           spec:
-            description: ApplicationSpec defines the desired state of Application
+            description: MicroserviceSpec defines the desired state of Microservice
             properties:
               dependencies:
-                description: Dependencies defines the list of applications this application
+                description: Dependencies defines the list of microservices this microservice
                   depends on
                 items:
-                  description: ApplicationRef defines a reference to an application
+                  description: MicroserviceRef defines a reference to an microservice
                   properties:
                     name:
-                      description: Name is the name of the application
+                      description: Name is the name of the microservice
                       type: string
                     namespace:
-                      description: Namespace is the namespace in which the application
+                      description: Namespace is the namespace in which the microservice
                         resides in
                       type: string
                   required:
@@ -6815,19 +6815,19 @@ spec:
             - podSpec
             type: object
           status:
-            description: ApplicationStatus defines the observed state of Application
+            description: MicroserviceStatus defines the observed state of Microservice
             properties:
               dependents:
-                description: Dependents defines the list of applications which depends
+                description: Dependents defines the list of microservices which depends
                   on this
                 items:
-                  description: ApplicationRef defines a reference to an application
+                  description: MicroserviceRef defines a reference to an microservice
                   properties:
                     name:
-                      description: Name is the name of the application
+                      description: Name is the name of the microservice
                       type: string
                     namespace:
-                      description: Namespace is the namespace in which the application
+                      description: Namespace is the namespace in which the microservice
                         resides in
                       type: string
                   required:
@@ -6838,13 +6838,13 @@ spec:
                 description: MissingDependencies describes the number of dependencies
                   that are not there in the cluster
                 items:
-                  description: ApplicationRef defines a reference to an application
+                  description: MicroserviceRef defines a reference to an microservice
                   properties:
                     name:
-                      description: Name is the name of the application
+                      description: Name is the name of the microservice
                       type: string
                     namespace:
-                      description: Namespace is the namespace in which the application
+                      description: Namespace is the namespace in which the microservice
                         resides in
                       type: string
                   required:

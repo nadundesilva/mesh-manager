@@ -21,54 +21,54 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// ApplicationRef defines a reference to an application
-type ApplicationRef struct {
-	// Namespace is the namespace in which the application resides in
+// MicroserviceRef defines a reference to an microservice
+type MicroserviceRef struct {
+	// Namespace is the namespace in which the microservice resides in
 	Namespace string `json:"namespace,omitempty"`
 
-	// Name is the name of the application
+	// Name is the name of the microservice
 	Name string `json:"name"`
 }
 
-// ApplicationSpec defines the desired state of Application
-type ApplicationSpec struct {
+// MicroserviceSpec defines the desired state of Microservice
+type MicroserviceSpec struct {
 	// PodSpec describes the pods that will be created
 	PodSpec corev1.PodSpec `json:"podSpec"`
 
-	// Dependencies defines the list of applications this application depends on
-	Dependencies []ApplicationRef `json:"dependencies,omitempty"`
+	// Dependencies defines the list of microservices this microservice depends on
+	Dependencies []MicroserviceRef `json:"dependencies,omitempty"`
 }
 
-// ApplicationStatus defines the observed state of Application
-type ApplicationStatus struct {
+// MicroserviceStatus defines the observed state of Microservice
+type MicroserviceStatus struct {
 	// MissingDependencies describes the number of dependencies that are not there in the cluster
-	MissingDependencies []ApplicationRef `json:"missingDependencies"`
+	MissingDependencies []MicroserviceRef `json:"missingDependencies"`
 
-	// Dependents defines the list of applications which depends on this
-	Dependents []ApplicationRef `json:"dependents,omitempty"`
+	// Dependents defines the list of microservices which depends on this
+	Dependents []MicroserviceRef `json:"dependents,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// Application is the Schema for the applications API
-type Application struct {
+// Microservice is the Schema for the microservices API
+type Microservice struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ApplicationSpec   `json:"spec,omitempty"`
-	Status ApplicationStatus `json:"status,omitempty"`
+	Spec   MicroserviceSpec   `json:"spec,omitempty"`
+	Status MicroserviceStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// ApplicationList contains a list of Application
-type ApplicationList struct {
+// MicroserviceList contains a list of Microservice
+type MicroserviceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Application `json:"items"`
+	Items           []Microservice `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Application{}, &ApplicationList{})
+	SchemeBuilder.Register(&Microservice{}, &MicroserviceList{})
 }

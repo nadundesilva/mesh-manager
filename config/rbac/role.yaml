@@ -15,7 +15,7 @@ rules:
 - apiGroups:
   - mesh-manager.nadundesilva.github.io
   resources:
-  - applications
+  - microservices
   verbs:
   - create
   - delete
@@ -27,13 +27,13 @@ rules:
 - apiGroups:
   - mesh-manager.nadundesilva.github.io
   resources:
-  - applications/finalizers
+  - microservices/finalizers
   verbs:
   - update
 - apiGroups:
   - mesh-manager.nadundesilva.github.io
   resources:
-  - applications/status
+  - microservices/status
   verbs:
   - get
   - patch

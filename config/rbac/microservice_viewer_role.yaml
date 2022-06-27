@@ -1,24 +1,20 @@
-# permissions for end users to edit applications.
+# permissions for end users to view microservices.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: application-editor-role
+  name: microservice-viewer-role
 rules:
 - apiGroups:
   - mesh-manager.nadundesilva.github.io
   resources:
-  - applications
+  - microservices
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - mesh-manager.nadundesilva.github.io
   resources:
-  - applications/status
+  - microservices/status
   verbs:
   - get

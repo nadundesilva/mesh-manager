@@ -1,6 +1,6 @@
-namespace: application-sample
+namespace: microservice-sample
 ## Append samples you want in your CSV to this file as resources ##
 resources:
 - namespace.yaml
-- mesh-manager_v1alpha1_application.yaml
+- mesh-manager_v1alpha1_microservice.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

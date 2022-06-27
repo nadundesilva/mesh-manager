@@ -1,7 +1,7 @@
 apiVersion: mesh-manager.nadundesilva.github.io/v1alpha1
-kind: Application
+kind: Microservice
 metadata:
-  name: app-dependency
+  name: microservice-dependency
 spec:
   podSpec:
     containers:
@@ -11,9 +11,9 @@ spec:
       - containerPort: 80
 ---
 apiVersion: mesh-manager.nadundesilva.github.io/v1alpha1
-kind: Application
+kind: Microservice
 metadata:
-  name: app
+  name: microservice
 spec:
   podSpec:
     containers:
@@ -22,4 +22,4 @@ spec:
       ports:
       - containerPort: 80
   dependencies:
-  - name: app-dependency
+  - name: microservice-dependency

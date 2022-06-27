@@ -78,12 +78,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.ApplicationReconciler{
+	if err = (&controllers.MicroserviceReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("application-controller"),
+		Recorder: mgr.GetEventRecorderFor("microservice-controller"),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Application")
+		setupLog.Error(err, "unable to create controller", "controller", "Microservice")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
