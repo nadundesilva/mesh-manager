@@ -4,9 +4,4 @@ Check the [Read Me](https://github.com/nadundesilva/mesh-manager/tree/{{VERSION_
 
 #### Changelog:
 
-- Add support for creating deployment from pod spec
-- Add support for creating service automatically from pod spec ports
-- Prevent resource creation when resources are missing
-- Add support for creating network policy to limit incoming traffic only from dependents
-- Add events and status for improving debuggability
-- Add finalier to prevent deletion when there are dependents are present
+- 
