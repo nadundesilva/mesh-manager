@@ -4,6 +4,10 @@
 [![Vulnerabilities Scan](https://github.com/nadundesilva/mesh-manager/actions/workflows/vulnerabilities-scan.yaml/badge.svg)](https://github.com/nadundesilva/mesh-manager/actions/workflows/vulnerabilities-scan.yaml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
+[![Release](https://img.shields.io/github/release/nadundesilva/mesh-manager.svg?style=flat-square)](https://github.com/nadundesilva/mesh-manager/releases/latest)
+[![Docker Image](https://img.shields.io/docker/image-size/nadunrds/mesh-manager/latest?style=flat-square)](https://hub.docker.com/r/nadunrds/mesh-manager)
+[![Docker Pulls](https://img.shields.io/docker/pulls/nadunrds/mesh-manager?style=flat-square)](https://hub.docker.com/r/nadunrds/mesh-manager)
+
 Mesh Manager is Kubernetes Operator for managing microservices at scale. One of the main problems that any system faces with scale
 is managing microservices and ensuring that the system runs properly. Mesh Manager aims to address this issue.
 
