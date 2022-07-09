@@ -1,0 +1,54 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-mesh-manager-nadundesilva-github-io-v1alpha1-microservice
+  failurePolicy: Fail
+  name: mmicroservice.kb.io
+  rules:
+  - apiGroups:
+    - mesh-manager.nadundesilva.github.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - microservices
+  sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-mesh-manager-nadundesilva-github-io-v1alpha1-microservice
+  failurePolicy: Fail
+  name: vmicroservice.kb.io
+  rules:
+  - apiGroups:
+    - mesh-manager.nadundesilva.github.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - microservices
+  sideEffects: None

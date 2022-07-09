@@ -6,6 +6,16 @@ metadata:
   creationTimestamp: null
   name: microservices.mesh-manager.nadundesilva.github.io
 spec:
+  conversion:
+    strategy: Webhook
+    webhook:
+      clientConfig:
+        service:
+          name: mesh-manager-webhook-service
+          namespace: mesh-manager-system
+          path: /convert
+      conversionReviewVersions:
+      - v1
   group: mesh-manager.nadundesilva.github.io
   names:
     kind: Microservice

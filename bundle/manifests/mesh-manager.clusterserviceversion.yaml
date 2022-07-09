@@ -177,6 +177,10 @@ spec:
                   initialDelaySeconds: 15
                   periodSeconds: 20
                 name: manager
+                ports:
+                - containerPort: 9443
+                  name: webhook-server
+                  protocol: TCP
                 readinessProbe:
                   httpGet:
                     path: /readyz
@@ -254,3 +258,55 @@ spec:
     name: Nadun De Silva
     url: https://nadundesilva.github.io
   version: 0.0.1
+  webhookdefinitions:
+  - admissionReviewVersions:
+    - v1
+    containerPort: 443
+    conversionCRDs:
+    - microservices.mesh-manager.nadundesilva.github.io
+    deploymentName: mesh-manager-controller-manager
+    generateName: cmicroservices.kb.io
+    sideEffects: None
+    targetPort: 9443
+    type: ConversionWebhook
+    webhookPath: /convert
+  - admissionReviewVersions:
+    - v1
+    containerPort: 443
+    deploymentName: mesh-manager-controller-manager
+    failurePolicy: Fail
+    generateName: mmicroservice.kb.io
+    rules:
+    - apiGroups:
+      - mesh-manager.nadundesilva.github.io
+      apiVersions:
+      - v1alpha1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - microservices
+    sideEffects: None
+    targetPort: 9443
+    type: MutatingAdmissionWebhook
+    webhookPath: /mutate-mesh-manager-nadundesilva-github-io-v1alpha1-microservice
+  - admissionReviewVersions:
+    - v1
+    containerPort: 443
+    deploymentName: mesh-manager-controller-manager
+    failurePolicy: Fail
+    generateName: vmicroservice.kb.io
+    rules:
+    - apiGroups:
+      - mesh-manager.nadundesilva.github.io
+      apiVersions:
+      - v1alpha1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - microservices
+    sideEffects: None
+    targetPort: 9443
+    type: ValidatingAdmissionWebhook
+    webhookPath: /validate-mesh-manager-nadundesilva-github-io-v1alpha1-microservice
