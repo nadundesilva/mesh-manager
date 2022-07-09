@@ -194,7 +194,7 @@ func (r *MicroserviceReconciler) reconcileDeployment(ctx context.Context, req ct
 		return err
 	} else {
 		if *newReplicaCount != microservice.Status.Replicas {
-			r.Recorder.Eventf(microservice, "Normal", CreatedDeploymentEvent, "Scaled deployment to %d replicas: %s",
+			r.Recorder.Eventf(microservice, "Normal", CreatedDeploymentEvent, "Scaled microservice to %d replicas: %s",
 				*newReplicaCount, deployment.GetName())
 		}
 

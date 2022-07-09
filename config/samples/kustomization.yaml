@@ -3,4 +3,5 @@ namespace: microservice-sample
 resources:
 - namespace.yaml
 - mesh-manager_v1alpha1_microservice.yaml
+- hpa.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

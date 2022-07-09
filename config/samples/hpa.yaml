@@ -1,0 +1,37 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: microservice-dependency
+spec:
+  scaleTargetRef:
+    apiVersion: mesh-manager.nadundesilva.github.io/v1alpha1
+    kind: Microservice
+    name: microservice-dependency
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: microservice
+spec:
+  scaleTargetRef:
+    apiVersion: mesh-manager.nadundesilva.github.io/v1alpha1
+    kind: Microservice
+    name: microservice
+  minReplicas: 2
+  maxReplicas: 3
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80

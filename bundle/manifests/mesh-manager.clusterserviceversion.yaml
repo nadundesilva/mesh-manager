@@ -29,7 +29,8 @@ metadata:
                   ]
                 }
               ]
-            }
+            },
+            "replicas": 1
           }
         },
         {
@@ -52,7 +53,8 @@ metadata:
                   ]
                 }
               ]
-            }
+            },
+            "replicas": 1
           }
         }
       ]

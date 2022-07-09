@@ -3,6 +3,7 @@ kind: Microservice
 metadata:
   name: microservice-dependency
 spec:
+  replicas: 1
   podSpec:
     containers:
     - name: nginx
@@ -15,6 +16,7 @@ kind: Microservice
 metadata:
   name: microservice
 spec:
+  replicas: 1
   podSpec:
     containers:
     - name: nginx
