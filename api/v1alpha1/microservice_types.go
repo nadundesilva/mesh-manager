@@ -32,6 +32,9 @@ type MicroserviceRef struct {
 
 // MicroserviceSpec defines the desired state of Microservice
 type MicroserviceSpec struct {
+	// Replicas specifies the replicas count of the deployment
+	Replicas *int32 `json:"replicas,omitempty"`
+
 	// PodSpec describes the pods that will be created
 	PodSpec corev1.PodSpec `json:"podSpec"`
 
@@ -41,6 +44,12 @@ type MicroserviceSpec struct {
 
 // MicroserviceStatus defines the observed state of Microservice
 type MicroserviceStatus struct {
+	// Replicas describes the current actual replica count
+	Replicas int32 `json:"replicas"`
+
+	// Selector describes the string form of the selector
+	Selector string `json:"selector"`
+
 	// MissingDependencies describes the number of dependencies that are not there in the cluster
 	MissingDependencies []MicroserviceRef `json:"missingDependencies"`
 
@@ -50,6 +59,7 @@ type MicroserviceStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas,selectorpath=.status.selector
 
 // Microservice is the Schema for the microservices API
 type Microservice struct {

@@ -4,4 +4,4 @@ Check the [Read Me](https://github.com/nadundesilva/mesh-manager/tree/{{VERSION_
 
 #### Changelog:
 
-- 
+- Add support to scale microservice using HPA and kubectl

@@ -23,10 +23,12 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -130,17 +132,17 @@ func (r *MicroserviceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Creating sub-resources
 	if len(microservice.Spec.Dependencies) == 0 || len(microservice.Status.MissingDependencies) == 0 {
-		labels := map[string]string{
+		parentLabels := map[string]string{
 			microserviceLabel: req.Name,
 		}
 		for k, v := range microservice.Labels {
-			labels[k] = v
+			parentLabels[k] = v
 		}
 
-		if err := r.reconcileDeployment(ctx, req, microservice, labels); err != nil {
+		if err := r.reconcileDeployment(ctx, req, microservice, parentLabels); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to reconcile microservice deployment: %+w", err)
 		}
-		if err := r.reconcileNetworking(ctx, req, microservice, labels); err != nil {
+		if err := r.reconcileNetworking(ctx, req, microservice, parentLabels); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to reconcile microservice service: %+w", err)
 		}
 		return ctrl.Result{}, nil
@@ -155,24 +157,32 @@ func (r *MicroserviceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 func (r *MicroserviceReconciler) reconcileDeployment(ctx context.Context, req ctrl.Request,
-	microservice *meshmanagerv1alpha1.Microservice, labels map[string]string) error {
+	microservice *meshmanagerv1alpha1.Microservice, parentLabels map[string]string) error {
+	var newReplicaCount *int32
+	if microservice.Spec.Replicas != nil {
+		newReplicaCount = microservice.Spec.Replicas
+	} else {
+		newReplicaCount = pointer.Int32(1)
+	}
+
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: req.Namespace,
 			Name:      req.Name,
-			Labels:    labels,
+			Labels:    parentLabels,
 		},
 	}
 	result, err := ctrl.CreateOrUpdate(ctx, r.Client, deployment, func() error {
 		deployment.Spec.Selector = &metav1.LabelSelector{
-			MatchLabels: labels,
+			MatchLabels: parentLabels,
 		}
 		deployment.Spec.Template = corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
-				Labels: labels,
+				Labels: parentLabels,
 			},
 			Spec: microservice.Spec.PodSpec,
 		}
+		deployment.Spec.Replicas = newReplicaCount
 		if err := ctrl.SetControllerReference(microservice, deployment, r.Scheme); err != nil {
 			return fmt.Errorf("failed to set controller reference to microservice deployment: %+w", err)
 		}
@@ -182,6 +192,17 @@ func (r *MicroserviceReconciler) reconcileDeployment(ctx context.Context, req ct
 		r.Recorder.Eventf(microservice, "Warning", FailedUpdatingDeploymentEvent,
 			"Failed creating/updating deployment: %v", err)
 		return err
+	} else {
+		if *newReplicaCount != microservice.Status.Replicas {
+			r.Recorder.Eventf(microservice, "Normal", CreatedDeploymentEvent, "Scaled deployment to %d replicas: %s",
+				*newReplicaCount, deployment.GetName())
+		}
+
+		microservice.Status.Selector = labels.Set(parentLabels).String()
+		microservice.Status.Replicas = *newReplicaCount
+		if err := r.Status().Update(ctx, microservice); err != nil {
+			return fmt.Errorf("failed to update status with replica count: %+w", err)
+		}
 	}
 	if result == controllerutil.OperationResultCreated {
 		r.Recorder.Eventf(microservice, "Normal", CreatedDeploymentEvent, "Created deployment: %s",
@@ -194,7 +215,7 @@ func (r *MicroserviceReconciler) reconcileDeployment(ctx context.Context, req ct
 }
 
 func (r *MicroserviceReconciler) reconcileNetworking(ctx context.Context, req ctrl.Request,
-	microservice *meshmanagerv1alpha1.Microservice, labels map[string]string) error {
+	microservice *meshmanagerv1alpha1.Microservice, parentLabels map[string]string) error {
 	ports := []corev1.ServicePort{}
 	for _, container := range microservice.Spec.PodSpec.Containers {
 		for _, port := range container.Ports {
@@ -217,11 +238,11 @@ func (r *MicroserviceReconciler) reconcileNetworking(ctx context.Context, req ct
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: req.Namespace,
 			Name:      req.Name,
-			Labels:    labels,
+			Labels:    parentLabels,
 		},
 	}
 	result, err := ctrl.CreateOrUpdate(ctx, r.Client, service, func() error {
-		service.Spec.Selector = labels
+		service.Spec.Selector = parentLabels
 		service.Spec.Ports = ports
 
 		if err := ctrl.SetControllerReference(microservice, service, r.Scheme); err != nil {
@@ -246,12 +267,12 @@ func (r *MicroserviceReconciler) reconcileNetworking(ctx context.Context, req ct
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: req.Namespace,
 			Name:      req.Name,
-			Labels:    labels,
+			Labels:    parentLabels,
 		},
 	}
 	result, err = ctrl.CreateOrUpdate(ctx, r.Client, netpol, func() error {
 		netpol.Spec.PodSelector = metav1.LabelSelector{
-			MatchLabels: labels,
+			MatchLabels: parentLabels,
 		}
 		netpol.Spec.PolicyTypes = []networkingv1.PolicyType{
 			networkingv1.PolicyTypeIngress,

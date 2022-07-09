@@ -11,7 +11,10 @@
 Mesh Manager is Kubernetes Operator for managing microservices at scale. One of the main problems that any system faces with scale
 is managing microservices and ensuring that the system runs properly. Mesh Manager aims to address this issue.
 
-Mesh Manager is still a work in progress and needs much improvement.
+## Features
+
+- Enforcing strictly specifying dependencies
+- Prevention of missing dependency issues
 
 ## How to Use
 

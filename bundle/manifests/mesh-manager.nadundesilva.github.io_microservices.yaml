@@ -6811,6 +6811,10 @@ spec:
                 required:
                 - containers
                 type: object
+              replicas:
+                description: Replicas specifies the replicas count of the deployment
+                format: int32
+                type: integer
             required:
             - podSpec
             type: object
@@ -6851,13 +6855,26 @@ spec:
                   - name
                   type: object
                 type: array
+              replicas:
+                description: Replicas describes the current actual replica count
+                format: int32
+                type: integer
+              selector:
+                description: Selector describes the string form of the selector
+                type: string
             required:
             - missingDependencies
+            - replicas
+            - selector
             type: object
         type: object
     served: true
     storage: true
     subresources:
+      scale:
+        labelSelectorPath: .status.selector
+        specReplicasPath: .spec.replicas
+        statusReplicasPath: .status.replicas
       status: {}
 status:
   acceptedNames:
