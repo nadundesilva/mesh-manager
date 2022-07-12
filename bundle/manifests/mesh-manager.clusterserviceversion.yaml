@@ -14,7 +14,8 @@ metadata:
           "spec": {
             "dependencies": [
               {
-                "name": "microservice-dependency"
+                "name": "microservice-dependency",
+                "namespace": "microservice-sample"
               }
             ],
             "podSpec": {

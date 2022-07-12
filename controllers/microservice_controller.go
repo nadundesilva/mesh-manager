@@ -28,7 +28,6 @@ import (
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -162,13 +161,6 @@ func (r *MicroserviceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 func (r *MicroserviceReconciler) reconcileDeployment(ctx context.Context, req ctrl.Request,
 	microservice *meshmanagerv1alpha1.Microservice, parentLabels map[string]string) error {
-	var newReplicaCount *int32
-	if microservice.Spec.Replicas != nil {
-		newReplicaCount = microservice.Spec.Replicas
-	} else {
-		newReplicaCount = pointer.Int32(1)
-	}
-
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: req.Namespace,
@@ -186,7 +178,7 @@ func (r *MicroserviceReconciler) reconcileDeployment(ctx context.Context, req ct
 			},
 			Spec: microservice.Spec.PodSpec,
 		}
-		deployment.Spec.Replicas = newReplicaCount
+		deployment.Spec.Replicas = microservice.Spec.Replicas
 		if err := ctrl.SetControllerReference(microservice, deployment, r.Scheme); err != nil {
 			return fmt.Errorf("failed to set controller reference to microservice deployment: %+w", err)
 		}
@@ -197,13 +189,13 @@ func (r *MicroserviceReconciler) reconcileDeployment(ctx context.Context, req ct
 			"Failed creating/updating deployment: %v", err)
 		return err
 	} else {
-		if *newReplicaCount != microservice.Status.Replicas {
+		if *microservice.Spec.Replicas != microservice.Status.Replicas {
 			r.Recorder.Eventf(microservice, "Normal", CreatedDeploymentEvent, "Scaled microservice to %d replicas: %s",
-				*newReplicaCount, deployment.GetName())
+				*microservice.Spec.Replicas, deployment.GetName())
 		}
 
 		microservice.Status.Selector = labels.Set(parentLabels).String()
-		microservice.Status.Replicas = *newReplicaCount
+		microservice.Status.Replicas = *microservice.Spec.Replicas
 		if err := r.Status().Update(ctx, microservice); err != nil {
 			return fmt.Errorf("failed to update status with replica count: %+w", err)
 		}
@@ -345,14 +337,8 @@ func (r *MicroserviceReconciler) reconcileDependencies(ctx context.Context, req 
 	microservice.Status.MissingDependencies = []meshmanagerv1alpha1.MicroserviceRef{}
 	for _, dependency := range microservice.Spec.Dependencies {
 		dependencyName := apitypes.NamespacedName{
-			Namespace: func() string {
-				if dependency.Namespace == "" {
-					return microservice.GetNamespace()
-				} else {
-					return dependency.Namespace
-				}
-			}(),
-			Name: dependency.Name,
+			Namespace: dependency.Namespace,
+			Name:      dependency.Name,
 		}
 
 		dependencyMicroservice := &meshmanagerv1alpha1.Microservice{}
@@ -396,14 +382,8 @@ func (r *MicroserviceReconciler) finalize(ctx context.Context, req ctrl.Request,
 	for _, dependency := range microservice.Spec.Dependencies {
 		dependencyMicroservice := &meshmanagerv1alpha1.Microservice{}
 		dependencyName := apitypes.NamespacedName{
-			Namespace: func() string {
-				if dependency.Namespace == "" {
-					return microservice.GetNamespace()
-				} else {
-					return dependency.Namespace
-				}
-			}(),
-			Name: dependency.Name,
+			Namespace: dependency.Namespace,
+			Name:      dependency.Name,
 		}
 		err := r.Get(ctx, dependencyName, dependencyMicroservice)
 		if err != nil {

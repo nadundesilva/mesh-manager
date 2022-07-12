@@ -24,4 +24,5 @@ spec:
       ports:
       - containerPort: 80
   dependencies:
-  - name: microservice-dependency
+  - namespace: microservice-sample
+    name: microservice-dependency
