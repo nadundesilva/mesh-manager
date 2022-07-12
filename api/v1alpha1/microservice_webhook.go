@@ -14,6 +14,8 @@
 package v1alpha1
 
 import (
+	"fmt"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -29,8 +31,6 @@ func (r *Microservice) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		For(r).
 		Complete()
 }
-
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 
 //+kubebuilder:webhook:path=/mutate-mesh-manager-nadundesilva-github-io-v1alpha1-microservice,mutating=true,failurePolicy=fail,sideEffects=None,groups=mesh-manager.nadundesilva.github.io,resources=microservices,verbs=create;update,versions=v1alpha1,name=mmicroservice.kb.io,admissionReviewVersions=v1
 
@@ -50,8 +50,7 @@ func (r *Microservice) Default() {
 	}
 }
 
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-mesh-manager-nadundesilva-github-io-v1alpha1-microservice,mutating=false,failurePolicy=fail,sideEffects=None,groups=mesh-manager.nadundesilva.github.io,resources=microservices,verbs=create;update,versions=v1alpha1,name=vmicroservice.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-mesh-manager-nadundesilva-github-io-v1alpha1-microservice,mutating=false,failurePolicy=fail,sideEffects=None,groups=mesh-manager.nadundesilva.github.io,resources=microservices,verbs=create;update;delete,versions=v1alpha1,name=vmicroservice.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Microservice{}
 
@@ -68,11 +67,29 @@ func (r *Microservice) ValidateUpdate(old runtime.Object) error {
 }
 
 func (r *Microservice) validate() error {
+	if *r.Spec.Replicas < 0 {
+		return fmt.Errorf("microservice replica count cannot be below zero")
+	}
+
+	existingPorts := []int32{}
+	for _, container := range r.Spec.PodSpec.Containers {
+		for _, port := range container.Ports {
+			for _, existingPort := range existingPorts {
+				if existingPort == port.ContainerPort {
+					return fmt.Errorf("microservice cannot contain duplicated port %d", port.ContainerPort)
+				}
+			}
+			existingPorts = append(existingPorts, port.ContainerPort)
+		}
+	}
 	return nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *Microservice) ValidateDelete() error {
 	microservicelog.Info("validate delete", "name", r.Name)
+	if len(r.Status.Dependents) > 0 {
+		return fmt.Errorf("unable to delete while dependants %+v exists", r.Status.Dependents)
+	}
 	return nil
 }
