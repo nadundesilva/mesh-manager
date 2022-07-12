@@ -65,5 +65,7 @@ else
     exit 1
 fi
 
-operator-sdk run bundle --namespace "${MESH_MANAGER_NAMESPACE}" "docker.io/nadunrds/mesh-manager-bundle:${VERSION}"
+operator-sdk run bundle --index-image=quay.io/operator-framework/opm:v1.23.0 \
+    --namespace "${MESH_MANAGER_NAMESPACE}" \
+    "docker.io/nadunrds/mesh-manager-bundle:${VERSION}"
 echo "🏄 Completed! Mesh Manager is ready in the cluster (context: $(kubectl config current-context))"
