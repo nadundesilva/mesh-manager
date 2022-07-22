@@ -38,15 +38,16 @@ var _ webhook.Defaulter = &Microservice{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *Microservice) Default() {
-	microservicelog.Info("default", "name", r.Name)
+	microservicelog.Info("default", "name", r.GetName(), "namespace", r.GetNamespace())
 
 	if r.Spec.Replicas == nil {
 		r.Spec.Replicas = pointer.Int32(1)
 	}
-	for _, dependency := range r.Spec.Dependencies {
+	for i, dependency := range r.Spec.Dependencies {
 		if dependency.Namespace == "" {
 			dependency.Namespace = r.GetNamespace()
 		}
+		r.Spec.Dependencies[i] = dependency
 	}
 }
 
@@ -56,13 +57,13 @@ var _ webhook.Validator = &Microservice{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Microservice) ValidateCreate() error {
-	microservicelog.Info("validate create", "name", r.Name)
+	microservicelog.Info("validate create", "name", r.GetName(), "namespace", r.GetNamespace())
 	return r.validate()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Microservice) ValidateUpdate(old runtime.Object) error {
-	microservicelog.Info("validate update", "name", r.Name)
+	microservicelog.Info("validate update", "name", r.GetName(), "namespace", r.GetNamespace())
 	return r.validate()
 }
 
@@ -87,7 +88,7 @@ func (r *Microservice) validate() error {
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *Microservice) ValidateDelete() error {
-	microservicelog.Info("validate delete", "name", r.Name)
+	microservicelog.Info("validate delete", "name", r.GetName(), "namespace", r.GetNamespace())
 	if len(r.Status.Dependents) > 0 {
 		return fmt.Errorf("unable to delete while dependants %+v exists", r.Status.Dependents)
 	}
