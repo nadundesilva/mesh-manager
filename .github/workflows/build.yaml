@@ -94,6 +94,21 @@ jobs:
             - name: Perform CodeQL Analysis
               uses: github/codeql-action/analyze@v2
 
+    run-unit-tests:
+        name: Run Unit Tests
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v3
+              with:
+                  fetch-depth: 0
+            - name: Setup GoLang
+              uses: actions/setup-go@v3
+              with:
+                  go-version: "^1.18"
+            - name: Run Tests
+              run: make test
+
     build-operator:
         name: Build Operator
         runs-on: ubuntu-latest
@@ -102,6 +117,7 @@ jobs:
             - check-code
             - run-super-linter
             - run-codeql-analysis
+            - run-unit-tests
         steps:
             - name: Checkout repository
               uses: actions/checkout@v3

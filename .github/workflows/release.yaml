@@ -52,6 +52,8 @@ jobs:
               uses: actions/setup-go@v3
               with:
                   go-version: "^1.18"
+            - name: Run Unit Tests
+              run: make test
             - name: Setup Operator SDK
               run: |
                   .github/scripts/setup-operator-sdk.sh
