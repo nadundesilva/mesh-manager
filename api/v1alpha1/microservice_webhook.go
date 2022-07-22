@@ -72,16 +72,20 @@ func (r *Microservice) validate() error {
 		return fmt.Errorf("microservice replica count cannot be below zero")
 	}
 
+	duplicatedPorts := []int32{}
 	existingPorts := []int32{}
 	for _, container := range r.Spec.PodSpec.Containers {
 		for _, port := range container.Ports {
 			for _, existingPort := range existingPorts {
 				if existingPort == port.ContainerPort {
-					return fmt.Errorf("microservice cannot contain duplicated port %d", port.ContainerPort)
+					duplicatedPorts = append(duplicatedPorts, port.ContainerPort)
 				}
 			}
 			existingPorts = append(existingPorts, port.ContainerPort)
 		}
+	}
+	if len(duplicatedPorts) > 0 {
+		return fmt.Errorf("microservice cannot contain duplicated port(s) %v", duplicatedPorts)
 	}
 	return nil
 }
