@@ -511,4 +511,42 @@ var _ = Describe("Calling webhook", func() {
 			fmt.Errorf("microservice cannot contain duplicated port(s) [8080 1070]"),
 		),
 	)
+
+	DescribeTable("Validates deletes",
+		func(object *Microservice, expectedError error) {
+			err := object.ValidateDelete()
+			if expectedError == nil {
+				Expect(err).NotTo(HaveOccurred())
+			} else {
+				Expect(err).To(MatchError(expectedError))
+			}
+		},
+		Entry("When dependants count is 0",
+			&Microservice{
+				Status: MicroserviceStatus{
+					Dependents: []MicroserviceRef{},
+				},
+			},
+			nil,
+		),
+		Entry("When dependants count is greater than 0",
+			&Microservice{
+				Status: MicroserviceStatus{
+					Dependents: []MicroserviceRef{
+						{
+							Namespace: "namespace-1",
+							Name:      "microservice-1",
+						},
+						{
+							Namespace: "namespace-2",
+							Name:      "microservice-2",
+						},
+					},
+				},
+			},
+			fmt.Errorf("unable to delete while dependants "+
+				"[{Namespace:namespace-1 Name:microservice-1} "+
+				"{Namespace:namespace-2 Name:microservice-2}] exists"),
+		),
+	)
 })
