@@ -17,26 +17,19 @@ on:
                 type: string
 
 jobs:
-    operator-run-trivy-scan:
+    trivy-scan:
         name: Run Trivy Scan
         runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                image:
+                    - mesh-manager
+                    - mesh-manager-bundle
         steps:
             - name: Run Trivy vulnerability scanner
               uses: aquasecurity/trivy-action@master
               with:
-                  image-ref: nadunrds/mesh-manager:${{ github.event.inputs.image-tag || 'latest' }}
-                  format: 'table'
-                  exit-code: '1'
-                  ignore-unfixed: true
-
-    operator-bundle-run-trivy-scan:
-        name: Run Trivy Scan
-        runs-on: ubuntu-latest
-        steps:
-            - name: Run Trivy vulnerability scanner
-              uses: aquasecurity/trivy-action@master
-              with:
-                  image-ref: nadunrds/mesh-manager-bundle:${{ github.event.inputs.image-tag || 'latest' }}
+                  image-ref: nadunrds/${{ matrix.image }}:${{ github.event.inputs.image-tag || 'latest' }}
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true

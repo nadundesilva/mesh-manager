@@ -80,3 +80,7 @@ operator-sdk cleanup mesh-manager
 :bug: If you have found a bug and would like to get it fixed, try opening a [Bug Report](https://github.com/nadundesilva/mesh-manager/issues/new?labels=Type%2FBug&template=bug-report.md).
 
 :bulb: If you have a new idea or want to get a new feature or improvement added to the Mesh Manager, try creating a [Feature Request](https://github.com/nadundesilva/mesh-manager/issues/new?labels=Type%2FFeature&template=feature-request.md).
+
+## Development
+
+The development guide can be found [here](./DEVELOPMENT.md). Contributions are welcome.
