@@ -6,11 +6,10 @@ on:
             publish-snapshots:
                 description: Whether the snapshots should be published (true/false)
                 required: true
-                type: string
+                type: boolean
         secrets:
             docker_hub_token:
                 description: Docker Hub token
-                required: true
 
 jobs:
     check-code-gen:
@@ -162,16 +161,18 @@ jobs:
                   exit-code: '1'
                   ignore-unfixed: true
             - name: Login to the Container registry
-              if: ${{ inputs.publish-snapshots != '' }}
+              if: ${{ inputs.publish-snapshots == true }}
               uses: docker/login-action@v2
               with:
                   username: nadunrds
                   password: ${{ secrets.docker_hub_token }}
             - name: Pushing Controller
+              if: ${{ inputs.publish-snapshots == true }}
               run: make docker-push
               env:
                   IMG: "nadunrds/mesh-manager:${{ github.ref_name }}"
             - name: Pushing Controller Bundle
+              if: ${{ inputs.publish-snapshots == true }}
               run: make bundle-push
               env:
                   BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ github.ref_name }}"
