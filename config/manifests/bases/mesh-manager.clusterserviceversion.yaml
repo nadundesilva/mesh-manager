@@ -38,7 +38,7 @@ spec:
   - deployment
   links:
   - name: Mesh Manager
-    url: https://mesh-manager.domain
+    url: https://nadundesilva.github.io/projects/personal
   maintainers:
   - email: nadunrds@gmail.com
     name: nadundesilva
