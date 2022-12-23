@@ -65,6 +65,8 @@ else
     exit 1
 fi
 
+# index-image v1.23.0 of quay.io/operator-framework/opm image is used as a
+# workaround for https://github.com/operator-framework/operator-registry/issues/984
 operator-sdk run bundle --index-image=quay.io/operator-framework/opm:v1.23.0 \
     --namespace "${MESH_MANAGER_NAMESPACE}" \
     "docker.io/nadunrds/mesh-manager-bundle:${VERSION}"

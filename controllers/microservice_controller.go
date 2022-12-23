@@ -79,7 +79,7 @@ type MicroserviceReconciler struct {
 // the user.
 //
 // For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.2/pkg/reconcile
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *MicroserviceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx).WithValues("microservice", req.NamespacedName)
 	ctx = log.IntoContext(ctx, logger)
@@ -148,7 +148,7 @@ func (r *MicroserviceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if err := r.reconcileNetworking(ctx, req, microservice, parentLabels); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to reconcile microservice service: %+w", err)
 		}
-		return ctrl.Result{}, nil
+	return ctrl.Result{}, nil
 	} else {
 		r.Recorder.Eventf(microservice, "Warning", FailedDependencyResolutionEvent,
 			"Failed to find all dependencies within the cluster")

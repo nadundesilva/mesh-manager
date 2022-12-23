@@ -29,6 +29,8 @@ jobs:
                   .github/scripts/setup-operator-sdk.sh
             - name: Generate code
               run: make generate manifests bundle
+            - name: Ignore Files with Timestamps
+              run: git checkout HEAD -- ./bundle/manifests/mesh-manager.clusterserviceversion.yaml
             - name: Check for changes
               run: |
                   if [ -n "$(git status --porcelain)" ]; then

@@ -34,7 +34,9 @@ spec:
   - supported: true
     type: AllNamespaces
   keywords:
+  - kubernetes
   - microservices
+  - large-scale
   - deployment
   links:
   - name: Mesh Manager
