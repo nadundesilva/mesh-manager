@@ -148,7 +148,7 @@ func (r *MicroserviceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if err := r.reconcileNetworking(ctx, req, microservice, parentLabels); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to reconcile microservice service: %+w", err)
 		}
-	return ctrl.Result{}, nil
+		return ctrl.Result{}, nil
 	} else {
 		r.Recorder.Eventf(microservice, "Warning", FailedDependencyResolutionEvent,
 			"Failed to find all dependencies within the cluster")

@@ -132,6 +132,13 @@ jobs:
               uses: actions/setup-go@v3
               with:
                   go-version: "^1.19"
+            - name: Set up Docker Buildx
+              id: buildx
+              uses: docker/setup-buildx-action@v2
+              with:
+                  install: true
+            - name: Available platforms
+              run: echo ${{ steps.buildx.outputs.platforms }}
             - name: Setup Operator SDK
               run: |
                   .github/scripts/setup-operator-sdk.sh
@@ -141,7 +148,7 @@ jobs:
                   IMG: "nadunrds/mesh-manager:${{ github.ref_name }}"
                   BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ github.ref_name }}"
             - name: Building Controller
-              run: make docker-build
+              run: make docker-buildx
               env:
                   IMG: "nadunrds/mesh-manager:${{ github.ref_name }}"
             - name: Run Trivy vulnerability scanner on Controller
@@ -170,7 +177,7 @@ jobs:
                   password: ${{ secrets.docker_hub_token }}
             - name: Pushing Controller
               if: ${{ inputs.publish-snapshots == true }}
-              run: make docker-push
+              run: make docker-buildx
               env:
                   IMG: "nadunrds/mesh-manager:${{ github.ref_name }}"
             - name: Pushing Controller Bundle
