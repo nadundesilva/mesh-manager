@@ -35,6 +35,7 @@ jobs:
               run: |
                   if [ -n "$(git status --porcelain)" ]; then
                     echo "There are new changes after the code generation. Please run 'make generate manifests bundle' and commit the changes"
+                    git diff -p
                     exit 1
                   fi
 
