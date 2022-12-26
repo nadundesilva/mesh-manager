@@ -61,6 +61,20 @@ jobs:
                     exit 1
                   fi
 
+    validate-bundle:
+        name: Run GitHub Super Linter
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v3
+              with:
+                  fetch-depth: 0
+            - name: Setup Operator SDK
+              run: |
+                  .github/scripts/setup-operator-sdk.sh
+            - name: Validate Bundle
+              run: operator-sdk bundle validate ./bundle
+
     run-super-linter:
         name: Run GitHub Super Linter
         runs-on: ubuntu-latest
@@ -121,6 +135,7 @@ jobs:
         needs:
             - check-code-gen
             - check-code
+            - validate-bundle
             - run-super-linter
             - run-codeql-analysis
             - run-unit-tests

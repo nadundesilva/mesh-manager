@@ -84,6 +84,8 @@ jobs:
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
+            - name: Validate Bundle
+              run: operator-sdk bundle validate nadunrds/mesh-manager:${{ env.RELEASE_PATCH_VERSION }}
             - name: Login to the Container registry
               uses: docker/login-action@v2
               with:
