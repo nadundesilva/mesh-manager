@@ -73,6 +73,7 @@ jobs:
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
+                  trivyignores: .trivyignore.controller
             - name: Building Controller Bundle
               run: make bundle-build
               env:
@@ -84,6 +85,7 @@ jobs:
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
+                  trivyignores: .trivyignore.bundle
             - name: Validate Bundle
               run: operator-sdk bundle validate nadunrds/mesh-manager:${{ env.RELEASE_PATCH_VERSION }}
             - name: Login to the Container registry

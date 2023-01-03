@@ -174,6 +174,7 @@ jobs:
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
+                  trivyignores: .trivyignore.controller
             - name: Building Controller Bundle
               run: make bundle-build
               env:
@@ -185,6 +186,7 @@ jobs:
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
+                  trivyignores: .trivyignore.bundle
             - name: Login to the Container registry
               if: ${{ inputs.publish-snapshots == true }}
               uses: docker/login-action@v2
