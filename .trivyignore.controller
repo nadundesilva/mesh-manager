@@ -1,4 +1,1 @@
 # Ignored Trivy Vulnerabilities (Controller)
-
-# No Fixed Version (golang.org/x/net)
-CVE-2022-41717
