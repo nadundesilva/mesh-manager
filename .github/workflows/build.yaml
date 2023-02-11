@@ -62,7 +62,7 @@ jobs:
                   fi
 
     validate-bundle:
-        name: Run GitHub Super Linter
+        name: Run Operator Bundle Validator
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
@@ -73,7 +73,10 @@ jobs:
               run: |
                   .github/scripts/setup-operator-sdk.sh
             - name: Validate Bundle
-              run: operator-sdk bundle validate ./bundle
+              run: |
+                operator-sdk bundle validate ./bundle \
+                  --image-builder none \
+                  --select-optional name=community
 
     run-super-linter:
         name: Run GitHub Super Linter
@@ -203,3 +206,23 @@ jobs:
               run: make bundle-push
               env:
                   BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ github.ref_name }}"
+
+    validate-multi-architecture-bundle:
+        name: Validate Bundle Multi Architecture Support
+        runs-on: ubuntu-latest
+        if: ${{ inputs.publish-snapshots == true }}
+        needs:
+            - build-operator
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v3
+              with:
+                  fetch-depth: 0
+            - name: Setup Operator SDK
+              run: |
+                  .github/scripts/setup-operator-sdk.sh
+            - name: Validate Bundle
+              run: |
+                operator-sdk bundle validate docker.io/nadunrds/mesh-manager-bundle:${{ github.ref_name }} \
+                  --image-builder none \
+                  --select-optional name=multiarch

@@ -1,4 +1,4 @@
-name: Vulnerabilities Scan
+name: Validate Operator
 
 on:
     workflow_run:
@@ -40,3 +40,25 @@ jobs:
                   exit-code: '1'
                   ignore-unfixed: true
                   trivyignores: ${{ matrix.scan.trivyignores }}
+
+    validate-bundle:
+        name: Run Operator Bundle Validator
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v3
+              with:
+                  fetch-depth: 0
+            - name: Setup Operator SDK
+              run: |
+                  .github/scripts/setup-operator-sdk.sh
+            - name: Validate Bundle
+              run: |
+                for SELECTOR in name=multiarch name=community
+                do
+                  echo
+                  echo "Running bundle validator (Selector: ${SELECTOR})"
+                  operator-sdk bundle validate docker.io/nadunrds/mesh-manager-bundle:${{ github.event.inputs.image-tag || 'latest' }} \
+                    --image-builder none \
+                    --select-optional ${SELECTOR}
+                done
