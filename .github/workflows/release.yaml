@@ -64,7 +64,7 @@ jobs:
                   BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ env.RELEASE_PATCH_VERSION }}"
             - name: Validate Bundle
               run: |
-                operator-sdk bundle ./bundle \
+                operator-sdk bundle validate ./bundle \
                   --image-builder none \
                   --select-optional name=community
             - name: Building Controller
