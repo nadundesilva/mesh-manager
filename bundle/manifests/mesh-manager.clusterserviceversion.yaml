@@ -60,7 +60,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2023-02-05T07:56:33Z"
+    createdAt: "2023-02-13T06:59:58Z"
     operators.operatorframework.io/builder: operator-sdk-v1.27.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
   name: mesh-manager.v0.0.1
@@ -268,6 +268,8 @@ spec:
                   runAsUser: 65532
               securityContext:
                 runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
               serviceAccountName: mesh-manager-controller-manager
               terminationGracePeriodSeconds: 10
       permissions:
