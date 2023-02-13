@@ -4,13 +4,4 @@ Check the [Read Me](https://github.com/nadundesilva/mesh-manager/tree/{{VERSION_
 
 #### Changelog:
 
-- Upgrade to Operator Framework v1.27.0
-- Fix vulnerabilities
-  - CVE-2022-41717
-  - CVE-2022-41721
-- Add support for multiple CPU architectures in Controller workloads
-  - amd64
-  - arm64
-  - ppc64le
-  - s390x
-- Add default runtime profile to Controller deployment
+- 
