@@ -15,6 +15,7 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -40,6 +41,11 @@ type MicroserviceSpec struct {
 
 	// Dependencies defines the list of microservices this microservice depends on
 	Dependencies []MicroserviceRef `json:"dependencies,omitempty"`
+
+	// AllowedIngressPeers defines the list of network peers from which ingress traffic is allowed.
+	// These ingress peers should be only used for traffic originating from non Microservice
+	// workloads. This is useful for allowing traffic from ingress controllers and legacy workloads.
+	AllowedIngressPeers []networkingv1.NetworkPolicyPeer `json:"allowedIngressPeers,omitempty"`
 }
 
 // MicroserviceStatus defines the observed state of Microservice

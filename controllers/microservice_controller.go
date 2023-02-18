@@ -266,7 +266,7 @@ func (r *MicroserviceReconciler) reconcileNetworking(ctx context.Context, req ct
 		netpol.Spec.PolicyTypes = []networkingv1.PolicyType{
 			networkingv1.PolicyTypeIngress,
 		}
-		if len(microservice.Status.Dependents) > 0 {
+		if len(microservice.Status.Dependents) > 0 || len(microservice.Spec.AllowedIngressPeers) > 0 {
 			netpol.Spec.Ingress = []networkingv1.NetworkPolicyIngressRule{
 				{
 					Ports: func() []networkingv1.NetworkPolicyPort {
@@ -295,6 +295,7 @@ func (r *MicroserviceReconciler) reconcileNetworking(ctx context.Context, req ct
 								},
 							})
 						}
+						peers = append(peers, microservice.Spec.AllowedIngressPeers...)
 						return peers
 					}(),
 				},

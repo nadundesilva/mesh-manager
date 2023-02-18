@@ -26,3 +26,7 @@ spec:
   dependencies:
   - namespace: microservice-sample
     name: microservice-dependency
+  allowedIngressPeers:  # Used for allowing traffic from NginX
+  - namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: nginx-ingress-system

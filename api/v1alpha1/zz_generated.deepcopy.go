@@ -19,6 +19,7 @@
 package v1alpha1
 
 import (
+	"k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -109,6 +110,13 @@ func (in *MicroserviceSpec) DeepCopyInto(out *MicroserviceSpec) {
 		in, out := &in.Dependencies, &out.Dependencies
 		*out = make([]MicroserviceRef, len(*in))
 		copy(*out, *in)
+	}
+	if in.AllowedIngressPeers != nil {
+		in, out := &in.AllowedIngressPeers, &out.AllowedIngressPeers
+		*out = make([]v1.NetworkPolicyPeer, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 }
 

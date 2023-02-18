@@ -44,6 +44,140 @@ spec:
           spec:
             description: MicroserviceSpec defines the desired state of Microservice
             properties:
+              allowedIngressPeers:
+                description: AllowedIngressPeers defines the list of network peers
+                  from which ingress traffic is allowed. These ingress peers should
+                  be only used for traffic originating from non Microservice workloads.
+                  This is useful for allowing traffic from ingress controllers and
+                  legacy workloads.
+                items:
+                  description: NetworkPolicyPeer describes a peer to allow traffic
+                    to/from. Only certain combinations of fields are allowed
+                  properties:
+                    ipBlock:
+                      description: IPBlock defines policy on a particular IPBlock.
+                        If this field is set then neither of the other fields can
+                        be.
+                      properties:
+                        cidr:
+                          description: CIDR is a string representing the IP Block
+                            Valid examples are "192.168.1.0/24" or "2001:db8::/64"
+                          type: string
+                        except:
+                          description: Except is a slice of CIDRs that should not
+                            be included within an IP Block Valid examples are "192.168.1.0/24"
+                            or "2001:db8::/64" Except values will be rejected if they
+                            are outside the CIDR range
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - cidr
+                      type: object
+                    namespaceSelector:
+                      description: "Selects Namespaces using cluster-scoped labels.
+                        This field follows standard label selector semantics; if present
+                        but empty, it selects all namespaces. \n If PodSelector is
+                        also set, then the NetworkPolicyPeer as a whole selects the
+                        Pods matching PodSelector in the Namespaces selected by NamespaceSelector.
+                        Otherwise it selects all Pods in the Namespaces selected by
+                        NamespaceSelector."
+                      properties:
+                        matchExpressions:
+                          description: matchExpressions is a list of label selector
+                            requirements. The requirements are ANDed.
+                          items:
+                            description: A label selector requirement is a selector
+                              that contains values, a key, and an operator that relates
+                              the key and values.
+                            properties:
+                              key:
+                                description: key is the label key that the selector
+                                  applies to.
+                                type: string
+                              operator:
+                                description: operator represents a key's relationship
+                                  to a set of values. Valid operators are In, NotIn,
+                                  Exists and DoesNotExist.
+                                type: string
+                              values:
+                                description: values is an array of string values.
+                                  If the operator is In or NotIn, the values array
+                                  must be non-empty. If the operator is Exists or
+                                  DoesNotExist, the values array must be empty. This
+                                  array is replaced during a strategic merge patch.
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          description: matchLabels is a map of {key,value} pairs.
+                            A single {key,value} in the matchLabels map is equivalent
+                            to an element of matchExpressions, whose key field is
+                            "key", the operator is "In", and the values array contains
+                            only "value". The requirements are ANDed.
+                          type: object
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    podSelector:
+                      description: "This is a label selector which selects Pods. This
+                        field follows standard label selector semantics; if present
+                        but empty, it selects all pods. \n If NamespaceSelector is
+                        also set, then the NetworkPolicyPeer as a whole selects the
+                        Pods matching PodSelector in the Namespaces selected by NamespaceSelector.
+                        Otherwise it selects the Pods matching PodSelector in the
+                        policy's own Namespace."
+                      properties:
+                        matchExpressions:
+                          description: matchExpressions is a list of label selector
+                            requirements. The requirements are ANDed.
+                          items:
+                            description: A label selector requirement is a selector
+                              that contains values, a key, and an operator that relates
+                              the key and values.
+                            properties:
+                              key:
+                                description: key is the label key that the selector
+                                  applies to.
+                                type: string
+                              operator:
+                                description: operator represents a key's relationship
+                                  to a set of values. Valid operators are In, NotIn,
+                                  Exists and DoesNotExist.
+                                type: string
+                              values:
+                                description: values is an array of string values.
+                                  If the operator is In or NotIn, the values array
+                                  must be non-empty. If the operator is Exists or
+                                  DoesNotExist, the values array must be empty. This
+                                  array is replaced during a strategic merge patch.
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          description: matchLabels is a map of {key,value} pairs.
+                            A single {key,value} in the matchLabels map is equivalent
+                            to an element of matchExpressions, whose key field is
+                            "key", the operator is "In", and the values array contains
+                            only "value". The requirements are ANDed.
+                          type: object
+                      type: object
+                      x-kubernetes-map-type: atomic
+                  type: object
+                type: array
               dependencies:
                 description: Dependencies defines the list of microservices this microservice
                   depends on
