@@ -5,3 +5,6 @@ Check the [Read Me](https://github.com/nadundesilva/mesh-manager/tree/{{VERSION_
 #### Changelog:
 
 - Add `AllowedIngressPeers` - Allow ingress traffic from custom resources (e.g.:- ingresses, legacy workloads)
+- Fix vulnerabilities
+  - CVE-2022-41723
+  - GHSA-vvpx-j8f3-3w6h
