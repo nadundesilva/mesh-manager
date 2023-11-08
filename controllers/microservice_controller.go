@@ -28,8 +28,10 @@ import (
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlController "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -143,7 +145,7 @@ func (r *MicroserviceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 		return ctrl.Result{}, nil
 	} else {
-		r.Recorder.Eventf(microservice, "Warning", FailedDependencyResolutionEvent,
+		r.Recorder.Event(microservice, "Warning", FailedDependencyResolutionEvent,
 			"Failed to find all dependencies within the cluster")
 		logger.Info("Microservice resources not created since it contains missing dependencies",
 			"totalDependenciesCount", len(microservice.Spec.Dependencies),
@@ -158,10 +160,10 @@ func (r *MicroserviceReconciler) reconcileDeployment(ctx context.Context, req ct
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: req.Namespace,
 			Name:      req.Name,
-			Labels:    parentLabels,
 		},
 	}
 	result, err := ctrl.CreateOrUpdate(ctx, r.Client, deployment, func() error {
+		deployment.SetLabels(parentLabels)
 		deployment.Spec.Selector = &metav1.LabelSelector{
 			MatchLabels: parentLabels,
 		}
@@ -227,10 +229,10 @@ func (r *MicroserviceReconciler) reconcileNetworking(ctx context.Context, req ct
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: req.Namespace,
 			Name:      req.Name,
-			Labels:    parentLabels,
 		},
 	}
 	result, err := ctrl.CreateOrUpdate(ctx, r.Client, service, func() error {
+		service.SetLabels(parentLabels)
 		service.Spec.Selector = parentLabels
 		service.Spec.Ports = ports
 
@@ -256,10 +258,10 @@ func (r *MicroserviceReconciler) reconcileNetworking(ctx context.Context, req ct
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: req.Namespace,
 			Name:      req.Name,
-			Labels:    parentLabels,
 		},
 	}
 	result, err = ctrl.CreateOrUpdate(ctx, r.Client, netpol, func() error {
+		netpol.SetLabels(parentLabels)
 		netpol.Spec.PodSelector = metav1.LabelSelector{
 			MatchLabels: parentLabels,
 		}
@@ -410,7 +412,15 @@ func (r *MicroserviceReconciler) finalize(ctx context.Context, req ctrl.Request,
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *MicroserviceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	options := ctrlController.Options{
+		MaxConcurrentReconciles: 100,
+		RecoverPanic:            ptr.To(true),
+		NeedLeaderElection:      ptr.To(true),
+	}
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("microservice-controller").
 		For(&meshmanagerv1alpha1.Microservice{}).
+		Owns(&meshmanagerv1alpha1.Microservice{}).
+		WithOptions(options).
 		Complete(r)
 }

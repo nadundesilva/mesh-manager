@@ -13,7 +13,7 @@ webhooks:
       namespace: system
       path: /mutate-mesh-manager-nadundesilva-github-io-v1alpha1-microservice
   failurePolicy: Fail
-  name: mmicroservice.kb.io
+  name: mesh-manager.nadundesilva.github.io
   rules:
   - apiGroups:
     - mesh-manager.nadundesilva.github.io

@@ -12,7 +12,7 @@
 
 set -e
 
-OLM_VERSION="v0.21.2"
+OLM_VERSION="v0.25.0"
 MESH_MANAGER_NAMESPACE="mesh-manager-system"
 
 if ! command -v jq &> /dev/null

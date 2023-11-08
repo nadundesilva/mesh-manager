@@ -3,12 +3,17 @@ name: Build
 on:
     workflow_call:
         inputs:
+            docker-image-tag:
+                description: The docker image tag to use
+                required: true
+                type: string
             publish-snapshots:
                 description: Whether the snapshots should be published (true/false)
                 required: true
                 type: boolean
         secrets:
             docker_hub_token:
+                required: false
                 description: Docker Hub token
 
 jobs:
@@ -17,24 +22,17 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v3
-              with:
-                  fetch-depth: 0
+              uses: actions/checkout@v4
             - name: Setup GoLang
-              uses: actions/setup-go@v3
+              uses: actions/setup-go@v4
               with:
-                  go-version: "^1.19"
-            - name: Setup Operator SDK
-              run: |
-                  .github/scripts/setup-operator-sdk.sh
+                  go-version: "^1.21"
             - name: Generate code
-              run: make generate manifests bundle
-            - name: Ignore Files with Timestamps
-              run: git checkout HEAD -- ./bundle/manifests/mesh-manager.clusterserviceversion.yaml
+              run: make generate manifests
             - name: Check for changes
               run: |
                   if [ -n "$(git status --porcelain)" ]; then
-                    echo "There are new changes after the code generation. Please run 'make generate manifests bundle' and commit the changes"
+                    echo "There are new changes after the code generation. Please run 'make generate manifests' and commit the changes"
                     git diff -p
                     exit 1
                   fi
@@ -44,13 +42,11 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v3
-              with:
-                  fetch-depth: 0
+              uses: actions/checkout@v4
             - name: Setup GoLang
-              uses: actions/setup-go@v3
+              uses: actions/setup-go@v4
               with:
-                  go-version: "^1.19"
+                  go-version: "^1.21"
             - name: Vet Code
               run: make vet
             - name: Check Code Format
@@ -67,14 +63,10 @@ jobs:
         steps:
             - name: Checkout repository
               uses: actions/checkout@v3
-              with:
-                  fetch-depth: 0
-            - name: Setup Operator SDK
-              run: |
-                  .github/scripts/setup-operator-sdk.sh
             - name: Validate Bundle
               run: |
-                operator-sdk bundle validate ./bundle \
+                make bundle
+                ./bin/operator-sdk bundle validate ./bundle \
                   --image-builder none \
                   --select-optional name=community
 
@@ -83,7 +75,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
               with:
                   fetch-depth: 0
             - name: Lint Code Base
@@ -107,7 +99,7 @@ jobs:
             fail-fast: false
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
             - name: Initialize CodeQL
               uses: github/codeql-action/init@v2
               with:
@@ -122,15 +114,13 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v3
-              with:
-                  fetch-depth: 0
+              uses: actions/checkout@v4
             - name: Setup GoLang
-              uses: actions/setup-go@v3
+              uses: actions/setup-go@v4
               with:
-                  go-version: "^1.19"
-            - name: Run Tests
-              run: make test
+                  go-version: "^1.21"
+            - name: Run Unit Tests
+              run: make test.unit
 
     build-operator:
         name: Build Operator
@@ -144,36 +134,36 @@ jobs:
             - run-unit-tests
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v3
-              with:
-                  fetch-depth: 0
+              uses: actions/checkout@v4
             - name: Setup GoLang
-              uses: actions/setup-go@v3
+              uses: actions/setup-go@v4
               with:
-                  go-version: "^1.19"
+                  go-version: "^1.21"
+            - name: Generate code
+              run: make generate manifests bundle
+              env:
+                  IMG: "nadunrds/k8s-replicator:${{ inputs.docker-image-tag }}"
+                  BUNDLE_IMG: "nadunrds/k8s-replicator-bundle:${{ inputs.docker-image-tag }}"
+            - name: Set up QEMU
+              uses: docker/setup-qemu-action@v3
             - name: Set up Docker Buildx
               id: buildx
-              uses: docker/setup-buildx-action@v2
-              with:
-                  install: true
+              uses: docker/setup-buildx-action@v3
             - name: Available platforms
               run: echo ${{ steps.buildx.outputs.platforms }}
-            - name: Setup Operator SDK
-              run: |
-                  .github/scripts/setup-operator-sdk.sh
             - name: Generate code
               run: make generate manifests bundle
               env:
                   IMG: "nadunrds/mesh-manager:${{ github.ref_name }}"
                   BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ github.ref_name }}"
             - name: Building Controller
-              run: make docker-buildx
+              run: make docker-build
               env:
-                  IMG: "nadunrds/mesh-manager:${{ github.ref_name }}"
+                  IMG: "nadunrds/mesh-manager:${{ inputs.docker-image-tag }}"
             - name: Run Trivy vulnerability scanner on Controller
               uses: aquasecurity/trivy-action@master
               with:
-                  image-ref: nadunrds/mesh-manager:${{ github.ref_name }}
+                  image-ref: nadunrds/mesh-manager:${{ inputs.docker-image-tag }}
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
@@ -181,18 +171,18 @@ jobs:
             - name: Building Controller Bundle
               run: make bundle-build
               env:
-                  BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ github.ref_name }}"
+                  BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ inputs.docker-image-tag }}"
             - name: Run Trivy vulnerability scanner on Controller Bundle
               uses: aquasecurity/trivy-action@master
               with:
-                  image-ref: nadunrds/mesh-manager-bundle:${{ github.ref_name }}
+                  image-ref: nadunrds/mesh-manager-bundle:${{ inputs.docker-image-tag }}
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
                   trivyignores: .trivyignore.bundle
             - name: Login to the Container registry
               if: ${{ inputs.publish-snapshots == true }}
-              uses: docker/login-action@v2
+              uses: docker/login-action@v3
               with:
                   username: nadunrds
                   password: ${{ secrets.docker_hub_token }}
@@ -200,12 +190,12 @@ jobs:
               if: ${{ inputs.publish-snapshots == true }}
               run: make docker-buildx
               env:
-                  IMG: "nadunrds/mesh-manager:${{ github.ref_name }}"
+                  IMG: "nadunrds/mesh-manager:${{ inputs.docker-image-tag }}"
             - name: Pushing Controller Bundle
               if: ${{ inputs.publish-snapshots == true }}
               run: make bundle-push
               env:
-                  BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ github.ref_name }}"
+                  BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ inputs.docker-image-tag }}"
 
     validate-multi-architecture-bundle:
         name: Validate Bundle Multi Architecture Support
@@ -216,13 +206,9 @@ jobs:
         steps:
             - name: Checkout repository
               uses: actions/checkout@v3
-              with:
-                  fetch-depth: 0
-            - name: Setup Operator SDK
-              run: |
-                  .github/scripts/setup-operator-sdk.sh
             - name: Validate Bundle
               run: |
-                operator-sdk bundle validate docker.io/nadunrds/mesh-manager-bundle:${{ github.ref_name }} \
+                make bundle
+                ./bin/operator-sdk bundle validate docker.io/nadunrds/mesh-manager-bundle:${{ github.ref_name }} \
                   --image-builder none \
                   --select-optional name=multiarch

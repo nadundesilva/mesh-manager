@@ -45,18 +45,13 @@ jobs:
                 git config --global user.name "${{ github.actor }}"
                 git config --global user.email nadunrds@gmail.com
             - name: Checkout repository
-              uses: actions/checkout@v3
-              with:
-                  fetch-depth: 0
+              uses: actions/checkout@v4
             - name: Setup GoLang
-              uses: actions/setup-go@v3
+              uses: actions/setup-go@v4
               with:
-                  go-version: "^1.19"
+                  go-version: "^1.21"
             - name: Run Unit Tests
-              run: make test
-            - name: Setup Operator SDK
-              run: |
-                  .github/scripts/setup-operator-sdk.sh
+              run: make test.unit
             - name: Generate code
               run: make generate manifests bundle
               env:
@@ -64,9 +59,17 @@ jobs:
                   BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ env.RELEASE_PATCH_VERSION }}"
             - name: Validate Bundle
               run: |
-                operator-sdk bundle validate ./bundle \
+                make operator-sdk
+                ./bin/operator-sdk bundle validate ./bundle \
                   --image-builder none \
                   --select-optional name=community
+            - name: Setup QEMU
+              uses: docker/setup-qemu-action@v3
+            - name: Setup Docker Buildx
+              id: buildx
+              uses: docker/setup-buildx-action@v3
+            - name: Buildx available platforms
+              run: echo ${{ steps.buildx.outputs.platforms }}
             - name: Building Controller
               run: make docker-build
               env:
@@ -92,7 +95,7 @@ jobs:
                   ignore-unfixed: true
                   trivyignores: .trivyignore.bundle
             - name: Login to the Container registry
-              uses: docker/login-action@v2
+              uses: docker/login-action@v3
               with:
                   username: nadunrds
                   password: ${{ secrets.docker_hub_token }}
@@ -148,14 +151,4 @@ jobs:
 
                 git add .github/RELEASE_NOTE
                 git commit -m "[Automated] Preparing for next development iteration"
-
-                git checkout -b "release-${RELEASE_PATCH_VERSION}"
-                git push origin "release-${RELEASE_PATCH_VERSION}"
-            - name: Create Release Sync Pull Request
-              env:
-                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              run: |
-                gh pr create --assignee "${{ github.actor }}" \
-                  --base main --head "release-${RELEASE_PATCH_VERSION}" \
-                  --title "[Automated] Release Sync after v${{ github.event.inputs.release-version }}" \
-                  --body "Sync changes with master after release v${{ github.event.inputs.release-version }}"
+                git push origin main

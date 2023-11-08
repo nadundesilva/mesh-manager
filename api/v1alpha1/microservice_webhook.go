@@ -17,10 +17,11 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -32,7 +33,7 @@ func (r *Microservice) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/mutate-mesh-manager-nadundesilva-github-io-v1alpha1-microservice,mutating=true,failurePolicy=fail,sideEffects=None,groups=mesh-manager.nadundesilva.github.io,resources=microservices,verbs=create;update,versions=v1alpha1,name=mmicroservice.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/mutate-mesh-manager-nadundesilva-github-io-v1alpha1-microservice,mutating=true,failurePolicy=fail,sideEffects=None,groups=mesh-manager.nadundesilva.github.io,resources=microservices,verbs=create;update,versions=v1alpha1,name=mesh-manager.nadundesilva.github.io,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &Microservice{}
 
@@ -41,7 +42,7 @@ func (r *Microservice) Default() {
 	microservicelog.Info("default", "name", r.GetName(), "namespace", r.GetNamespace())
 
 	if r.Spec.Replicas == nil {
-		r.Spec.Replicas = pointer.Int32(1)
+		r.Spec.Replicas = ptr.To[int32](1)
 	}
 	for i, dependency := range r.Spec.Dependencies {
 		if dependency.Namespace == "" {
@@ -56,20 +57,20 @@ func (r *Microservice) Default() {
 var _ webhook.Validator = &Microservice{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Microservice) ValidateCreate() error {
+func (r *Microservice) ValidateCreate() (warnings admission.Warnings, err error) {
 	microservicelog.Info("validate create", "name", r.GetName(), "namespace", r.GetNamespace())
 	return r.validate()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Microservice) ValidateUpdate(old runtime.Object) error {
+func (r *Microservice) ValidateUpdate(old runtime.Object) (warnings admission.Warnings, err error) {
 	microservicelog.Info("validate update", "name", r.GetName(), "namespace", r.GetNamespace())
 	return r.validate()
 }
 
-func (r *Microservice) validate() error {
+func (r *Microservice) validate() (warnings admission.Warnings, err error) {
 	if *r.Spec.Replicas < 0 {
-		return fmt.Errorf("microservice replica count cannot be below zero")
+		return admission.Warnings{}, fmt.Errorf("microservice replica count cannot be below zero")
 	}
 
 	duplicatedPorts := []int32{}
@@ -85,16 +86,16 @@ func (r *Microservice) validate() error {
 		}
 	}
 	if len(duplicatedPorts) > 0 {
-		return fmt.Errorf("microservice cannot contain duplicated port(s) %v", duplicatedPorts)
+		return admission.Warnings{}, fmt.Errorf("microservice cannot contain duplicated port(s) %v", duplicatedPorts)
 	}
-	return nil
+	return admission.Warnings{}, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Microservice) ValidateDelete() error {
+func (r *Microservice) ValidateDelete() (warnings admission.Warnings, err error) {
 	microservicelog.Info("validate delete", "name", r.GetName(), "namespace", r.GetNamespace())
 	if len(r.Status.Dependents) > 0 {
-		return fmt.Errorf("unable to delete while dependants %+v exists", r.Status.Dependents)
+		return admission.Warnings{}, fmt.Errorf("unable to delete while dependants %+v exists", r.Status.Dependents)
 	}
-	return nil
+	return admission.Warnings{}, nil
 }

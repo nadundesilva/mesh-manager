@@ -4,4 +4,5 @@ resources:
 - namespace.yaml
 - mesh-manager_v1alpha1_microservice.yaml
 - hpa.yaml
+- ingress.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples
