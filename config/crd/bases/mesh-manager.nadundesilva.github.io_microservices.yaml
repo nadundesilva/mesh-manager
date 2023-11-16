@@ -7453,7 +7453,6 @@ spec:
                 description: Selector describes the string form of the selector
                 type: string
             required:
-            - missingDependencies
             - replicas
             - selector
             type: object

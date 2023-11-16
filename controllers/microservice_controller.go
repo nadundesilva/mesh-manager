@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	meshmanagerv1alpha1 "github.com/nadundesilva/mesh-manager/api/v1alpha1"
+	meshmanagerutils "github.com/nadundesilva/mesh-manager/controllers/utils"
 )
 
 const (
@@ -99,8 +100,12 @@ func (r *MicroserviceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			}
 
 			if isFinalized {
-				controllerutil.RemoveFinalizer(microservice, microserviceFinalizer)
-				err := r.Update(ctx, microservice)
+				err := meshmanagerutils.UpdateMicroservice(ctx, r.Client, req.NamespacedName,
+					func(ms *meshmanagerv1alpha1.Microservice, update meshmanagerutils.UpdateFunc) error {
+						controllerutil.RemoveFinalizer(ms, microserviceFinalizer)
+						return update()
+					},
+				)
 				if err != nil {
 					return ctrl.Result{}, err
 				}
@@ -113,19 +118,20 @@ func (r *MicroserviceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Adding finalizer
 	if !controllerutil.ContainsFinalizer(microservice, microserviceFinalizer) {
-		controllerutil.AddFinalizer(microservice, microserviceFinalizer)
-		err := r.Update(ctx, microservice)
+		err := meshmanagerutils.UpdateMicroservice(ctx, r.Client, req.NamespacedName,
+			func(ms *meshmanagerv1alpha1.Microservice, update meshmanagerutils.UpdateFunc) error {
+				controllerutil.AddFinalizer(ms, microserviceFinalizer)
+				return update()
+			},
+		)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to add finalizer: %+w", err)
 		}
 	}
 
 	// Fixing dependencies
-	if err := r.reconcileDependencies(ctx, req, microservice); err != nil {
+	if err := r.reconcileDependencies(ctx, req.NamespacedName); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile microservice dependency slices: %+w", err)
-	}
-	if err := r.Status().Update(ctx, microservice); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to update existing microservice: %+w", err)
 	}
 
 	// Creating sub-resources
@@ -156,13 +162,8 @@ func (r *MicroserviceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 func (r *MicroserviceReconciler) reconcileDeployment(ctx context.Context, req ctrl.Request,
 	microservice *meshmanagerv1alpha1.Microservice, parentLabels map[string]string) error {
-	deployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: req.Namespace,
-			Name:      req.Name,
-		},
-	}
-	result, err := ctrl.CreateOrUpdate(ctx, r.Client, deployment, func() error {
+	deployment := &appsv1.Deployment{}
+	result, err := meshmanagerutils.CreateOrUpdate(ctx, r.Client, req.NamespacedName, deployment, func() error {
 		deployment.SetLabels(parentLabels)
 		deployment.Spec.Selector = &metav1.LabelSelector{
 			MatchLabels: parentLabels,
@@ -189,9 +190,14 @@ func (r *MicroserviceReconciler) reconcileDeployment(ctx context.Context, req ct
 				*microservice.Spec.Replicas, deployment.GetName())
 		}
 
-		microservice.Status.Selector = labels.Set(parentLabels).String()
-		microservice.Status.Replicas = *microservice.Spec.Replicas
-		if err := r.Status().Update(ctx, microservice); err != nil {
+		err := meshmanagerutils.UpdateMicroserviceStatus(ctx, r.Client, req.NamespacedName,
+			func(ms *meshmanagerv1alpha1.Microservice, update meshmanagerutils.UpdateFunc) error {
+				ms.Status.Selector = labels.Set(parentLabels).String()
+				ms.Status.Replicas = *ms.Spec.Replicas
+				return update()
+			},
+		)
+		if err != nil {
 			return fmt.Errorf("failed to update status with replica count: %+w", err)
 		}
 	}
@@ -214,24 +220,19 @@ func (r *MicroserviceReconciler) reconcileNetworking(ctx context.Context, req ct
 				Name:     port.Name,
 				Protocol: port.Protocol,
 				Port:     port.ContainerPort,
-				TargetPort: (func() intstr.IntOrString {
+				TargetPort: func() intstr.IntOrString {
 					if port.Name == "" {
 						return intstr.FromInt(int(port.ContainerPort))
 					} else {
 						return intstr.FromString(port.Name)
 					}
-				})(),
+				}(),
 			})
 		}
 	}
 
-	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: req.Namespace,
-			Name:      req.Name,
-		},
-	}
-	result, err := ctrl.CreateOrUpdate(ctx, r.Client, service, func() error {
+	service := &corev1.Service{}
+	result, err := meshmanagerutils.CreateOrUpdate(ctx, r.Client, req.NamespacedName, service, func() error {
 		service.SetLabels(parentLabels)
 		service.Spec.Selector = parentLabels
 		service.Spec.Ports = ports
@@ -254,13 +255,8 @@ func (r *MicroserviceReconciler) reconcileNetworking(ctx context.Context, req ct
 			service.GetName())
 	}
 
-	netpol := &networkingv1.NetworkPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: req.Namespace,
-			Name:      req.Name,
-		},
-	}
-	result, err = ctrl.CreateOrUpdate(ctx, r.Client, netpol, func() error {
+	netpol := &networkingv1.NetworkPolicy{}
+	result, err = meshmanagerutils.CreateOrUpdate(ctx, r.Client, req.NamespacedName, netpol, func() error {
 		netpol.SetLabels(parentLabels)
 		netpol.Spec.PodSelector = metav1.LabelSelector{
 			MatchLabels: parentLabels,
@@ -324,87 +320,95 @@ func (r *MicroserviceReconciler) reconcileNetworking(ctx context.Context, req ct
 	return nil
 }
 
-func (r *MicroserviceReconciler) reconcileDependencies(ctx context.Context, req ctrl.Request,
-	microservice *meshmanagerv1alpha1.Microservice) error {
+func (r *MicroserviceReconciler) reconcileDependencies(ctx context.Context, name apitypes.NamespacedName) error {
 	microserviceRef := meshmanagerv1alpha1.MicroserviceRef{
-		Namespace: microservice.Namespace,
-		Name:      microservice.Name,
+		Namespace: name.Namespace,
+		Name:      name.Name,
 	}
-	microservice.Status.MissingDependencies = []meshmanagerv1alpha1.MicroserviceRef{}
-	for _, dependency := range microservice.Spec.Dependencies {
-		dependencyName := apitypes.NamespacedName{
-			Namespace: dependency.Namespace,
-			Name:      dependency.Name,
-		}
-
-		dependencyMicroservice := &meshmanagerv1alpha1.Microservice{}
-		err := r.Get(ctx, dependencyName, dependencyMicroservice)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				dependencyRef := meshmanagerv1alpha1.MicroserviceRef{
-					Namespace: dependencyName.Namespace,
-					Name:      dependencyName.Name,
+	return meshmanagerutils.UpdateMicroserviceStatus(ctx, r.Client, name,
+		func(ms *meshmanagerv1alpha1.Microservice, update meshmanagerutils.UpdateFunc) error {
+			ms.Status.MissingDependencies = []meshmanagerv1alpha1.MicroserviceRef{}
+			for _, dependency := range ms.Spec.Dependencies {
+				dependencyName := apitypes.NamespacedName{
+					Namespace: dependency.Namespace,
+					Name:      dependency.Name,
 				}
-				microservice.Status.MissingDependencies = append(microservice.Status.MissingDependencies,
-					dependencyRef)
-				continue
-			} else {
-				return fmt.Errorf("failed to get existing dependency: %+w", err)
+				err := meshmanagerutils.UpdateMicroserviceStatus(ctx, r.Client, dependencyName,
+					func(dependencyMs *meshmanagerv1alpha1.Microservice, updateDependency meshmanagerutils.UpdateFunc) error {
+						// Adding current microservice to dependency's dependents list
+						isDependencyAlreadyLinked := false
+						for _, dependent := range dependencyMs.Status.Dependents {
+							if dependent.Namespace == microserviceRef.Namespace && dependent.Name == microserviceRef.Name {
+								isDependencyAlreadyLinked = true
+							}
+						}
+						if !isDependencyAlreadyLinked {
+							dependencyMs.Status.Dependents = append(dependencyMs.Status.Dependents, microserviceRef)
+							if err := updateDependency(); err != nil {
+								return err
+							}
+							r.Recorder.Eventf(dependencyMs, "Normal", AddedDependentEvent, "Added dependent %s/%s",
+								ms.Namespace, ms.Name)
+						}
+						return nil
+					},
+				)
+				if err != nil {
+					if errors.IsNotFound(err) {
+						dependencyRef := meshmanagerv1alpha1.MicroserviceRef{
+							Namespace: dependencyName.Namespace,
+							Name:      dependencyName.Name,
+						}
+						ms.Status.MissingDependencies = append(ms.Status.MissingDependencies, dependencyRef)
+						continue
+					} else {
+						return fmt.Errorf("failed to update dependency microservice %s/%s: %+w",
+							dependencyName.Namespace, dependencyName.Name, err)
+					}
+				}
 			}
-		}
-
-		// Adding current microservice to dependency's dependents list
-		isDependencyAlreadyLinked := false
-		for _, dependent := range dependencyMicroservice.Status.Dependents {
-			if dependent.Namespace == microserviceRef.Namespace && dependent.Name == microserviceRef.Name {
-				isDependencyAlreadyLinked = true
+			if err := update(); err != nil {
+				return fmt.Errorf("failed to update existing microservice: %+w", err)
 			}
-		}
-		if !isDependencyAlreadyLinked {
-			dependencyMicroservice.Status.Dependents = append(dependencyMicroservice.Status.Dependents, microserviceRef)
-			if err := r.Status().Update(ctx, dependencyMicroservice); err != nil {
-				return fmt.Errorf("failed to update dependency microservice %s/%s: %+w",
-					dependencyName.Namespace, dependencyName.Name, err)
-			}
-			r.Recorder.Eventf(dependencyMicroservice, "Normal", AddedDependentEvent, "Added dependent %s/%s",
-				microservice.Namespace, microservice.Name)
-		}
-	}
-	return nil
+			return nil
+		},
+	)
 }
 
 func (r *MicroserviceReconciler) finalize(ctx context.Context, req ctrl.Request,
 	microservice *meshmanagerv1alpha1.Microservice) (bool, error) {
 	for _, dependency := range microservice.Spec.Dependencies {
-		dependencyMicroservice := &meshmanagerv1alpha1.Microservice{}
 		dependencyName := apitypes.NamespacedName{
 			Namespace: dependency.Namespace,
 			Name:      dependency.Name,
 		}
-		err := r.Get(ctx, dependencyName, dependencyMicroservice)
+		err := meshmanagerutils.UpdateMicroserviceStatus(ctx, r.Client, dependencyName,
+			func(dependencyMs *meshmanagerv1alpha1.Microservice, update meshmanagerutils.UpdateFunc) error {
+				// Removing microservice from dependent slice of dependency
+				dependentIndex := -1
+				for index, dependent := range dependencyMs.Status.Dependents {
+					if dependent.Namespace == microservice.Namespace && dependent.Name == microservice.Name {
+						dependentIndex = index
+					}
+				}
+				if dependentIndex >= 0 {
+					dependents := dependencyMs.Status.Dependents
+					dependencyMs.Status.Dependents = append(dependents[:dependentIndex], dependents[dependentIndex+1:]...)
+					if err := update(); err != nil {
+						return err
+					}
+					r.Recorder.Eventf(dependencyMs, "Normal", RemovedDependentEvent, "Removed dependent %s/%s",
+						microservice.Namespace, microservice.Name)
+				}
+				return nil
+			},
+		)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				continue
 			} else {
-				return false, fmt.Errorf("failed to get existing dependency dependent slice: %+w", err)
-			}
-		}
-
-		// Removing microservice from dependent slice of dependency
-		dependentIndex := -1
-		for index, dependent := range dependencyMicroservice.Status.Dependents {
-			if dependent.Namespace == microservice.Namespace && dependent.Name == microservice.Name {
-				dependentIndex = index
-			}
-		}
-		if dependentIndex >= 0 {
-			dependents := dependencyMicroservice.Status.Dependents
-			dependencyMicroservice.Status.Dependents = append(dependents[:dependentIndex], dependents[dependentIndex+1:]...)
-			if err := r.Status().Update(ctx, dependencyMicroservice); err != nil {
 				return false, fmt.Errorf("failed to remove microservice from dependents list: %+w", err)
 			}
-			r.Recorder.Eventf(dependencyMicroservice, "Normal", RemovedDependentEvent, "Removed dependent %s/%s",
-				microservice.Namespace, microservice.Name)
 		}
 	}
 	return len(microservice.Status.Dependents) == 0, nil

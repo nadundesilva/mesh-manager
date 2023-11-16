@@ -70,8 +70,7 @@ func main() {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
 		Cache: cache.Options{
-			Scheme:                      scheme,
-			ReaderFailOnMissingInformer: true,
+			Scheme: scheme,
 		},
 		Metrics: server.Options{
 			BindAddress: metricsAddr,
