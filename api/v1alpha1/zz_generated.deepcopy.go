@@ -135,8 +135,12 @@ func (in *MicroserviceStatus) DeepCopyInto(out *MicroserviceStatus) {
 	*out = *in
 	if in.MissingDependencies != nil {
 		in, out := &in.MissingDependencies, &out.MissingDependencies
-		*out = make([]MicroserviceRef, len(*in))
-		copy(*out, *in)
+		*out = new([]MicroserviceRef)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make([]MicroserviceRef, len(*in))
+			copy(*out, *in)
+		}
 	}
 	if in.Dependents != nil {
 		in, out := &in.Dependents, &out.Dependents

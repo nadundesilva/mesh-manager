@@ -95,7 +95,7 @@ func (r *Microservice) validate() (warnings admission.Warnings, err error) {
 func (r *Microservice) ValidateDelete() (warnings admission.Warnings, err error) {
 	microservicelog.Info("validate delete", "name", r.GetName(), "namespace", r.GetNamespace())
 	if len(r.Status.Dependents) > 0 {
-		return admission.Warnings{}, fmt.Errorf("unable to delete while dependants %+v exists", r.Status.Dependents)
+		return admission.Warnings{}, fmt.Errorf("unable to delete while dependants %+v exist", r.Status.Dependents)
 	}
 	return admission.Warnings{}, nil
 }

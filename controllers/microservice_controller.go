@@ -16,7 +16,7 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"time"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -110,7 +110,7 @@ func (r *MicroserviceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 					return ctrl.Result{}, err
 				}
 			} else {
-				return ctrl.Result{RequeueAfter: time.Second * 10}, nil
+				return ctrl.Result{}, nil
 			}
 		}
 		return ctrl.Result{}, nil
@@ -135,29 +135,32 @@ func (r *MicroserviceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Creating sub-resources
-	if len(microservice.Spec.Dependencies) == 0 || len(microservice.Status.MissingDependencies) == 0 {
-		parentLabels := map[string]string{
-			microserviceLabel: req.Name,
-		}
-		for k, v := range microservice.Labels {
-			parentLabels[k] = v
-		}
+	if microservice.Status.MissingDependencies != nil {
+		if len(microservice.Spec.Dependencies) == 0 || len(*microservice.Status.MissingDependencies) == 0 {
+			parentLabels := map[string]string{
+				microserviceLabel: req.Name,
+			}
+			for k, v := range microservice.Labels {
+				parentLabels[k] = v
+			}
 
-		if err := r.reconcileDeployment(ctx, req, microservice, parentLabels); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to reconcile microservice deployment: %+w", err)
+			if err := r.reconcileDeployment(ctx, req, microservice, parentLabels); err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to reconcile microservice deployment: %+w", err)
+			}
+			if err := r.reconcileNetworking(ctx, req, microservice, parentLabels); err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to reconcile microservice service: %+w", err)
+			}
+			return ctrl.Result{}, nil
+		} else {
+			r.Recorder.Event(microservice, "Warning", FailedDependencyResolutionEvent,
+				"Failed to find all dependencies within the cluster")
+			logger.Info("Microservice resources not created since it contains missing dependencies",
+				"totalDependenciesCount", len(microservice.Spec.Dependencies),
+				"missingDependenciesCount", microservice.Status.MissingDependencies)
+			return ctrl.Result{}, nil
 		}
-		if err := r.reconcileNetworking(ctx, req, microservice, parentLabels); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to reconcile microservice service: %+w", err)
-		}
-		return ctrl.Result{}, nil
-	} else {
-		r.Recorder.Event(microservice, "Warning", FailedDependencyResolutionEvent,
-			"Failed to find all dependencies within the cluster")
-		logger.Info("Microservice resources not created since it contains missing dependencies",
-			"totalDependenciesCount", len(microservice.Spec.Dependencies),
-			"missingDependenciesCount", microservice.Status.MissingDependencies)
-		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
+	return ctrl.Result{}, nil
 }
 
 func (r *MicroserviceReconciler) reconcileDeployment(ctx context.Context, req ctrl.Request,
@@ -217,7 +220,12 @@ func (r *MicroserviceReconciler) reconcileNetworking(ctx context.Context, req ct
 	for _, container := range microservice.Spec.PodSpec.Containers {
 		for _, port := range container.Ports {
 			ports = append(ports, corev1.ServicePort{
-				Name:     port.Name,
+				Name: func() string {
+					if port.Name == "" {
+						return fmt.Sprintf("port-%s-%d", strings.ToLower(string(port.Protocol)), port.ContainerPort)
+					}
+					return port.Name
+				}(),
 				Protocol: port.Protocol,
 				Port:     port.ContainerPort,
 				TargetPort: func() intstr.IntOrString {
@@ -327,7 +335,7 @@ func (r *MicroserviceReconciler) reconcileDependencies(ctx context.Context, name
 	}
 	return meshmanagerutils.UpdateMicroserviceStatus(ctx, r.Client, name,
 		func(ms *meshmanagerv1alpha1.Microservice, update meshmanagerutils.UpdateFunc) error {
-			ms.Status.MissingDependencies = []meshmanagerv1alpha1.MicroserviceRef{}
+			missingDependencies := []meshmanagerv1alpha1.MicroserviceRef{}
 			for _, dependency := range ms.Spec.Dependencies {
 				dependencyName := apitypes.NamespacedName{
 					Namespace: dependency.Namespace,
@@ -359,7 +367,7 @@ func (r *MicroserviceReconciler) reconcileDependencies(ctx context.Context, name
 							Namespace: dependencyName.Namespace,
 							Name:      dependencyName.Name,
 						}
-						ms.Status.MissingDependencies = append(ms.Status.MissingDependencies, dependencyRef)
+						missingDependencies = append(missingDependencies, dependencyRef)
 						continue
 					} else {
 						return fmt.Errorf("failed to update dependency microservice %s/%s: %+w",
@@ -367,6 +375,7 @@ func (r *MicroserviceReconciler) reconcileDependencies(ctx context.Context, name
 					}
 				}
 			}
+			ms.Status.MissingDependencies = &missingDependencies
 			if err := update(); err != nil {
 				return fmt.Errorf("failed to update existing microservice: %+w", err)
 			}

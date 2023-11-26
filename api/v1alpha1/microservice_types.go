@@ -57,7 +57,7 @@ type MicroserviceStatus struct {
 	Selector string `json:"selector"`
 
 	// MissingDependencies describes the number of dependencies that are not there in the cluster
-	MissingDependencies []MicroserviceRef `json:"missingDependencies,omitempty"`
+	MissingDependencies *[]MicroserviceRef `json:"missingDependencies,omitempty"`
 
 	// Dependents defines the list of microservices which depends on this
 	Dependents []MicroserviceRef `json:"dependents,omitempty"`

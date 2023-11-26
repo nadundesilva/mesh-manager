@@ -120,8 +120,13 @@ test.unit: manifests generate envtest
 build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
+OPERATOR_KEY_DIR = /tmp/k8s-webhook-server/serving-certs
+
 .PHONY: run
-run: manifests generate fmt vet ## Run a controller from your host.
+run: manifests generate fmt vet install ## Run a controller from your host.
+	rm -rf $(OPERATOR_KEY_DIR)
+	mkdir -p $(OPERATOR_KEY_DIR)
+	openssl req -x509 -newkey rsa:4096 -keyout $(OPERATOR_KEY_DIR)/tls.key -out $(OPERATOR_KEY_DIR)/tls.crt -sha256 -days 30 -nodes -subj "/O=nadundesilva/OU=kubernetes/CN=mesh-manager"
 	go run ./main.go
 
 # If you wish built the manager image targeting other platforms you can use the --platform flag.

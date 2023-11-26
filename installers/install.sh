@@ -73,5 +73,6 @@ fi
 
 operator-sdk run bundle \
     --namespace "${MESH_MANAGER_NAMESPACE}" \
+    --timeout "5m0s" \
     "docker.io/nadunrds/mesh-manager-bundle:${VERSION}"
 echo "🏄 Completed! Mesh Manager is ready in the cluster (context: $(kubectl config current-context))"
