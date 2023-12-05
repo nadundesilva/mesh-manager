@@ -4,5 +4,4 @@ Check the [Read Me](https://github.com/nadundesilva/mesh-manager/tree/{{VERSION_
 
 #### Changelog:
 
-- Upgrade Operator SDK version to 1.31.0
-- Retry when object update conflicts occur
+- 
