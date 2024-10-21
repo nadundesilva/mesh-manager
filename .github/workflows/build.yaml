@@ -24,7 +24,7 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
             - name: Setup GoLang
-              uses: actions/setup-go@v4
+              uses: actions/setup-go@v5
               with:
                   go-version: "^1.21"
             - name: Generate code
@@ -44,7 +44,7 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
             - name: Setup GoLang
-              uses: actions/setup-go@v4
+              uses: actions/setup-go@v5
               with:
                   go-version: "^1.21"
             - name: Vet Code
@@ -62,7 +62,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
             - name: Validate Bundle
               run: |
                 make bundle
@@ -79,13 +79,17 @@ jobs:
               with:
                   fetch-depth: 0
             - name: Lint Code Base
-              uses: github/super-linter@v4
+              uses: super-linter/super-linter@v7
               env:
                   DEFAULT_BRANCH: main
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   VALIDATE_ALL_CODEBASE: "true"
+                  VALIDATE_CHECKOV: "false"
                   VALIDATE_GO: "false"
+                  VALIDATE_GO_MODULES: "false"
+                  VALIDATE_YAML_PRETTIER: "false"
                   VALIDATE_KUBERNETES_KUBEVAL: "false"
+                  VALIDATE_KUBERNETES_KUBECONFORM: "false"
                   KUBERNETES_KUBEVAL_OPTIONS: --ignore-missing-schemas
 
     run-codeql-analysis:
@@ -101,13 +105,13 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
             - name: Initialize CodeQL
-              uses: github/codeql-action/init@v2
+              uses: github/codeql-action/init@v3
               with:
                   languages: go
             - name: Autobuild
-              uses: github/codeql-action/autobuild@v2
+              uses: github/codeql-action/autobuild@v3
             - name: Perform CodeQL Analysis
-              uses: github/codeql-action/analyze@v2
+              uses: github/codeql-action/analyze@v3
 
     run-unit-tests:
         name: Run Unit Tests
@@ -116,7 +120,7 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
             - name: Setup GoLang
-              uses: actions/setup-go@v4
+              uses: actions/setup-go@v5
               with:
                   go-version: "^1.21"
             - name: Run Unit Tests
@@ -136,14 +140,19 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
             - name: Setup GoLang
-              uses: actions/setup-go@v4
+              uses: actions/setup-go@v5
               with:
                   go-version: "^1.21"
+            - name: Sanitize Docker Image Tag
+              env:
+                  BRANCH_NAME: ${{ inputs.docker-image-tag }}
+              run: |
+                  echo "DOCKER_IMAGE_TAG=${BRANCH_NAME/\//-}" >> "${GITHUB_ENV}"
             - name: Generate code
               run: make generate manifests bundle
               env:
-                  IMG: "nadunrds/k8s-replicator:${{ inputs.docker-image-tag }}"
-                  BUNDLE_IMG: "nadunrds/k8s-replicator-bundle:${{ inputs.docker-image-tag }}"
+                  IMG: "nadunrds/k8s-replicator:${{ env.DOCKER_IMAGE_TAG }}"
+                  BUNDLE_IMG: "nadunrds/k8s-replicator-bundle:${{ env.DOCKER_IMAGE_TAG }}"
             - name: Set up QEMU
               uses: docker/setup-qemu-action@v3
             - name: Set up Docker Buildx
@@ -159,11 +168,11 @@ jobs:
             - name: Building Controller
               run: make docker-build
               env:
-                  IMG: "nadunrds/mesh-manager:${{ inputs.docker-image-tag }}"
+                  IMG: "nadunrds/mesh-manager:${{ env.DOCKER_IMAGE_TAG }}"
             - name: Run Trivy vulnerability scanner on Controller
               uses: aquasecurity/trivy-action@master
               with:
-                  image-ref: nadunrds/mesh-manager:${{ inputs.docker-image-tag }}
+                  image-ref: nadunrds/mesh-manager:${{ env.DOCKER_IMAGE_TAG }}
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
@@ -171,11 +180,11 @@ jobs:
             - name: Building Controller Bundle
               run: make bundle-build
               env:
-                  BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ inputs.docker-image-tag }}"
+                  BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ env.DOCKER_IMAGE_TAG }}"
             - name: Run Trivy vulnerability scanner on Controller Bundle
               uses: aquasecurity/trivy-action@master
               with:
-                  image-ref: nadunrds/mesh-manager-bundle:${{ inputs.docker-image-tag }}
+                  image-ref: nadunrds/mesh-manager-bundle:${{ env.DOCKER_IMAGE_TAG }}
                   format: 'table'
                   exit-code: '1'
                   ignore-unfixed: true
@@ -190,12 +199,12 @@ jobs:
               if: ${{ inputs.publish-snapshots == true }}
               run: make docker-buildx
               env:
-                  IMG: "nadunrds/mesh-manager:${{ inputs.docker-image-tag }}"
+                  IMG: "nadunrds/mesh-manager:${{ env.DOCKER_IMAGE_TAG }}"
             - name: Pushing Controller Bundle
               if: ${{ inputs.publish-snapshots == true }}
               run: make bundle-push
               env:
-                  BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ inputs.docker-image-tag }}"
+                  BUNDLE_IMG: "nadunrds/mesh-manager-bundle:${{ env.DOCKER_IMAGE_TAG }}"
 
     validate-multi-architecture-bundle:
         name: Validate Bundle Multi Architecture Support
@@ -205,10 +214,10 @@ jobs:
             - build-operator
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
             - name: Validate Bundle
               run: |
                 make bundle
-                ./bin/operator-sdk bundle validate docker.io/nadunrds/mesh-manager-bundle:${{ github.ref_name }} \
+                ./bin/operator-sdk bundle validate docker.io/nadunrds/mesh-manager-bundle:${{ github.sha }} \
                   --image-builder none \
                   --select-optional name=multiarch
