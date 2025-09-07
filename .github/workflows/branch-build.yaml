@@ -1,18 +1,25 @@
 name: Branch Build
 
 on:
-    push:
-        branches:
-            - main
-            - 'feature/**'
-            - 'bug/**'
+  push:
+    branches:
+      - "feature/**"
+      - "bug/**"
+
+permissions:
+  contents: read
+  actions: read
 
 jobs:
-    build:
-        name: Build Branch
-        uses: ./.github/workflows/build.yaml
-        with:
-            docker-image-tag: ${{ github.ref_name }}
-            publish-snapshots: true
-        secrets:
-            docker_hub_token: ${{ secrets.DOCKER_HUB_TOKEN }}
+  build:
+    name: Build Branch
+    uses: ./.github/workflows/build.yaml
+    with:
+      version: 0.0.0-${{ github.ref_name }}
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+      checks: write
+    secrets:
+      docker-hub-token: ${{ secrets.DOCKER_HUB_TOKEN }}

@@ -21,10 +21,12 @@ is managing microservices and ensuring that the system runs properly. Mesh Manag
 ### Prerequisites
 
 The following tools are expected to be installed and ready.
+
 - Kubectl
 - Operator SDK
 
 The following tools can be either installed on your own or let the installation scripts handle it.
+
 - OLM to be installed in the cluster
   OLM can be installed using the [operator-sdk](https://sdk.operatorframework.io/docs/installation/)
   ```bash
@@ -44,8 +46,8 @@ curl -L https://raw.githubusercontent.com/nadundesilva/mesh-manager/main/install
 
 #### Manual Installation
 
-* Make sure all the pre-requisites are installed (including the dependencies which are normally installed by the installation scripts)
-* Install the Operator Bundle using the Operator SDK. The `<VERSION>` should be replaced with the release version
+- Make sure all the pre-requisites are installed (including the dependencies which are normally installed by the installation scripts)
+- Install the Operator Bundle using the Operator SDK. The `<VERSION>` should be replaced with the release version
   to be used (eg:- `0.1.0`) and kubectl CLI should be configured pointing to the cluster in which the controller needs to be started.
   ```bash
   operator-sdk run bundle docker.io/nadunrds/mesh-manager-bundle:<VERSION>

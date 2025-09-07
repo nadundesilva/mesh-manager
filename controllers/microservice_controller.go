@@ -204,10 +204,11 @@ func (r *MicroserviceReconciler) reconcileDeployment(ctx context.Context, req ct
 			return fmt.Errorf("failed to update status with replica count: %+w", err)
 		}
 	}
-	if result == controllerutil.OperationResultCreated {
+	switch result {
+	case controllerutil.OperationResultCreated:
 		r.Recorder.Eventf(microservice, "Normal", CreatedDeploymentEvent, "Created deployment: %s",
 			deployment.GetName())
-	} else if result == controllerutil.OperationResultUpdated {
+	case controllerutil.OperationResultUpdated:
 		r.Recorder.Eventf(microservice, "Normal", UpdatedDeploymentEvent, "Updated deployment: %s",
 			deployment.GetName())
 	}
@@ -255,10 +256,11 @@ func (r *MicroserviceReconciler) reconcileNetworking(ctx context.Context, req ct
 			"Failed creating/updating service: %v", err)
 		return err
 	}
-	if result == controllerutil.OperationResultCreated {
+	switch result {
+	case controllerutil.OperationResultCreated:
 		r.Recorder.Eventf(microservice, "Normal", CreatedServiceEvent, "Created service: %s",
 			service.GetName())
-	} else if result == controllerutil.OperationResultUpdated {
+	case controllerutil.OperationResultUpdated:
 		r.Recorder.Eventf(microservice, "Normal", UpdatedServiceEvent, "Updated service: %s",
 			service.GetName())
 	}
@@ -318,10 +320,11 @@ func (r *MicroserviceReconciler) reconcileNetworking(ctx context.Context, req ct
 			"Failed creating/updating network policy: %v", err)
 		return err
 	}
-	if result == controllerutil.OperationResultCreated {
+	switch result {
+	case controllerutil.OperationResultCreated:
 		r.Recorder.Eventf(microservice, "Normal", CreatedNetworkPolicyEvent, "Created network policy: %s",
 			netpol.GetName())
-	} else if result == controllerutil.OperationResultUpdated {
+	case controllerutil.OperationResultUpdated:
 		r.Recorder.Eventf(microservice, "Normal", UpdatedNetworkPolicyEvent, "Updated network policy: %s",
 			netpol.GetName())
 	}

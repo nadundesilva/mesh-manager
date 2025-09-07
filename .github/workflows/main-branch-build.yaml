@@ -1,7 +1,7 @@
-name: Pull Request Check
+name: Main Branch Build
 
 on:
-  pull_request:
+  push:
     branches:
       - main
 
@@ -11,12 +11,15 @@ permissions:
 
 jobs:
   build:
-    name: Check Pull Request
+    name: Build Main Branch
     uses: ./.github/workflows/build.yaml
     with:
-      version: 0.0.0-${{ github.sha }}
+      version: 0.0.0-${{ github.ref_name }}
+      publish-artifacts: true
     permissions:
       contents: read
       actions: read
       security-events: write
       checks: write
+    secrets:
+      docker-hub-token: ${{ secrets.DOCKER_HUB_TOKEN }}

@@ -1,5 +1,5 @@
 {
-    "configurations": {
-        "ignore": [".github/workflows/build.yaml"]
-    }
+  "configurations": {
+    "ignore": [".github/workflows/build.yaml"]
+  }
 }

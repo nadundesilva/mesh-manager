@@ -28,7 +28,8 @@ func CreateOrUpdate(ctx context.Context, c client.Client, name apitypes.Namespac
 	emptyObj.SetName(name.Name)
 	emptyObj.SetNamespace(name.Namespace)
 
-	retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+	err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		var err error
 		result, err = ctrl.CreateOrUpdate(ctx, c, emptyObj, f)
 		return err
 	})
