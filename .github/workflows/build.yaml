@@ -22,7 +22,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v4
+              uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
             - name: Setup GoLang
               uses: actions/setup-go@v4
               with:
@@ -42,7 +42,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v4
+              uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
             - name: Setup GoLang
               uses: actions/setup-go@v4
               with:
@@ -62,7 +62,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v3
+              uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
             - name: Validate Bundle
               run: |
                 make bundle
@@ -75,7 +75,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v4
+              uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
               with:
                   fetch-depth: 0
             - name: Lint Code Base
@@ -99,7 +99,7 @@ jobs:
             fail-fast: false
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v4
+              uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
             - name: Initialize CodeQL
               uses: github/codeql-action/init@v2
               with:
@@ -114,7 +114,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v4
+              uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
             - name: Setup GoLang
               uses: actions/setup-go@v4
               with:
@@ -134,7 +134,7 @@ jobs:
             - run-unit-tests
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v4
+              uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
             - name: Setup GoLang
               uses: actions/setup-go@v4
               with:
@@ -205,7 +205,7 @@ jobs:
             - build-operator
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v3
+              uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
             - name: Validate Bundle
               run: |
                 make bundle
