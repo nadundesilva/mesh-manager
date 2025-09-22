@@ -35,12 +35,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Setup GoLang
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6
         with:
           go-version: "1.25.1"
       - name: Generate code
@@ -60,12 +60,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Setup GoLang
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6
         with:
           go-version: "1.25.1"
       - name: Vet Code
@@ -85,7 +85,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -116,7 +116,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           persist-credentials: false
       - name: Initialize CodeQL
@@ -133,7 +133,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -146,12 +146,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Setup GoLang
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6
         with:
           go-version: "1.25.1"
       - name: Run Unit Tests
@@ -169,12 +169,12 @@ jobs:
       - run-unit-tests
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Setup GoLang
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6
         with:
           go-version: "1.25.1"
       - id: generate-bundle-version
@@ -202,7 +202,7 @@ jobs:
         env:
           VERSION: "${{ steps.generate-bundle-version.outputs.bundle-version }}"
       - name: Run Trivy vulnerability scanner on Controller
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
         with:
           image-ref: ${{ env.IMAGE_TAG_BASE }}:${{ steps.generate-bundle-version.outputs.bundle-version }}
           format: "table"
@@ -215,7 +215,7 @@ jobs:
         env:
           VERSION: "${{ steps.generate-bundle-version.outputs.bundle-version }}"
       - name: Run Trivy vulnerability scanner on Controller Bundle
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
         with:
           image-ref: ${{ env.IMAGE_TAG_BASE }}-bundle:${{ steps.generate-bundle-version.outputs.bundle-version }}
           format: "table"
@@ -262,7 +262,7 @@ jobs:
       - build-operator
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
           persist-credentials: false
