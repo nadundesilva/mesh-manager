@@ -85,4 +85,4 @@ operator-sdk cleanup mesh-manager
 
 ## Development
 
-The development guide can be found [here](./DEVELOPMENT.md). Contributions are welcome.
+Please refer to the [Development Guide](./DEVELOPMENT.md)](./DEVELOPMENT.md) for more information. Contributions are welcome.
