@@ -96,7 +96,7 @@ jobs:
         env:
           IMG: ${{ env.IMAGE_TAG_BASE }}:${{ github.sha }}
       - name: Lint Code Base
-        uses: super-linter/super-linter@502f4fe48a81a392756e173e39a861f8c8efe056 # v8.3.0
+        uses: super-linter/super-linter@d5b0a2ab116623730dd094f15ddc1b6b25bf7b99 # v8.3.2
         env:
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -131,7 +131,7 @@ jobs:
           format: sarif
           output: trivy-results.sarif
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@cf1bb45a277cb3c205638b2cd5c984db1c46a412 # v4.31.7
+        uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7 # v4.31.9
         if: always()
         with:
           sarif_file: trivy-results.sarif
@@ -200,7 +200,7 @@ jobs:
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
       - name: Setup Docker Buildx
         id: setup-buildx
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
       - name: Print Available Buildx Platforms
         run: echo "${SUPPORTED_PLATFORMS}"
         env:
